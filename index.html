@@ -4,58 +4,43 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>대학 실습실 환경개선 공사 예산 산출 시스템</title>
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS (엑셀 .xlsx/.xls/.csv 읽기 및 내보내기) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Google Fonts: Inter & Noto Sans KR -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     body {
       font-family: 'Noto Sans KR', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background-color: #f8fafc;
-      color: #0f172a;
     }
     .tabular-nums {
       font-variant-numeric: tabular-nums;
     }
-    /* 인쇄 및 PDF 내보내기 스타일 */
     @media print {
-      body {
-        background-color: #ffffff !important;
-        color: #000000 !important;
-      }
       .no-print {
         display: none !important;
       }
-      .print-only {
-        display: block !important;
+      body {
+        background: #ffffff !important;
       }
-      .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl {
-        box-shadow: none !important;
-      }
-      .border {
-        border-color: #cbd5e1 !important;
-      }
-      main {
-        max-width: 100% !important;
-        padding: 0 !important;
-      }
-      .print-break-avoid {
+      .print-break-inside-avoid {
         break-inside: avoid;
       }
     }
-    .print-only {
-      display: none;
-    }
   </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+  <!-- 토스트 알림 영역 -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none no-print"></div>
 
-  <!-- 상단 내비게이션 바 -->
+  <!-- 상단 네비게이션 바 -->
   <header class="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30 no-print">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
       <div class="flex items-center gap-3 min-w-0">
-        <div class="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-base shrink-0">
+        <div class="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center shrink-0 font-bold text-sm shadow">
           예산
         </div>
         <div class="min-w-0">
@@ -63,674 +48,443 @@
             대학 실습실 환경개선 공사 예산 산출 시스템
           </h1>
           <p class="text-[11px] text-slate-400 hidden sm:block truncate">
-            호실·면적 DB 연동 · 유형별 적산 · 수준별 금액 산출 · 공공공사 원가계산
+            호실 DB 자동 면적 연동 · 주요 공사내용 및 개선 수준 반영 · 공공공사 원가계산
           </p>
         </div>
       </div>
 
-      <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-wrap justify-end">
+      <div class="flex items-center gap-2 shrink-0">
         <button
           type="button"
-          onclick="openDataModal('rooms')"
-          class="px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition cursor-pointer"
+          onclick="openDbModal('rooms')"
+          class="px-3 py-2 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 transition cursor-pointer"
         >
           호실·면적 DB
         </button>
         <button
           type="button"
-          onclick="openDataModal('history')"
-          class="px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition cursor-pointer"
+          onclick="openDbModal('price')"
+          class="px-3 py-2 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 transition cursor-pointer"
         >
-          과거 실적 DB
+          단가 DB
         </button>
         <button
           type="button"
-          onclick="openDbModal()"
-          class="px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition cursor-pointer"
+          onclick="openDbModal('settings')"
+          class="px-3 py-2 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white transition cursor-pointer"
         >
-          단가표 관리
-        </button>
-        <button
-          type="button"
-          onclick="openSettingsModal()"
-          class="px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 transition cursor-pointer"
-        >
-          API·백업
-        </button>
-        <button
-          type="button"
-          onclick="exportToExcel()"
-          class="px-2.5 sm:px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer"
-        >
-          엑셀(.xlsx)
-        </button>
-        <button
-          type="button"
-          onclick="window.print()"
-          class="px-2.5 sm:px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition cursor-pointer"
-        >
-          인쇄/PDF
+          API·데이터 설정
         </button>
       </div>
     </div>
   </header>
 
-  <!-- 인쇄 전용 헤더 -->
-  <div class="print-only max-w-7xl mx-auto px-4 pt-4 pb-2 border-b-2 border-slate-900 mb-4">
-    <div class="flex items-end justify-between">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-900">대학 실습실 환경개선 공사 예산 산출내역서</h1>
-        <p id="print-subtitle" class="text-xs text-slate-600 mt-1"></p>
-      </div>
-      <div id="print-date" class="text-xs text-slate-600"></div>
-    </div>
+  <!-- 인쇄용 타이틀 헤더 -->
+  <div id="print-header" class="hidden print:block px-6 pt-6 pb-3 border-b border-slate-300">
+    <h1 class="text-xl font-bold text-slate-900">대학 실습실 환경개선 공사 예산 산출내역서</h1>
+    <p id="print-subtitle" class="text-xs text-slate-600 mt-1"></p>
+    <p id="print-date" class="text-xs text-slate-500 mt-0.5"></p>
   </div>
 
-  <!-- 알림 배너 -->
-  <div id="toast-container" class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-3 no-print"></div>
+  <!-- 메인 콘텐츠 -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-  <!-- 메인 2컬럼 워크스페이스 -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <!-- 좌측 패널: 호실 선택 및 공사 조건 설정 (5컬럼) -->
+      <section class="lg:col-span-5 space-y-5 no-print">
 
-    <!-- 좌측 패널: 호실 선택 및 조건 설정 (5 cols) -->
-    <section class="lg:col-span-5 space-y-5 no-print">
-
-      <!-- 1. 건물·호실 선택 및 면적 자동 계산 -->
-      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5 space-y-4">
-        <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
-          <div>
-            <h2 class="text-sm font-bold text-slate-900">1. 호실 선택 및 면적 자동 계산</h2>
-            <p class="text-xs text-slate-500 mt-0.5">호실 선택 시 전용면적·유형·수용인원이 자동 반영됩니다.</p>
+        <!-- 1. 건물·호실 선택 및 자동 면적 계산 카드 -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5 space-y-4">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <div>
+              <h2 class="text-sm font-bold text-slate-900">1. 건물·호실 선택 및 면적 산출</h2>
+              <p class="text-xs text-slate-500 mt-0.5">호실 선택 시 면적과 유형이 자동 계산됩니다.</p>
+            </div>
+            <label class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold cursor-pointer transition">
+              <span>엑셀 업로드</span>
+              <input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onchange="handleRoomExcelUpload(event)"
+                class="hidden"
+              />
+            </label>
           </div>
-          <label class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 cursor-pointer transition shrink-0">
-            엑셀(.xlsx) 업로드
-            <input type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleRoomExcelUpload(event)" />
-          </label>
-        </div>
 
-        <!-- 단일 / 복수 호실 모드 전환 -->
-        <div class="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
-          <label class="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
-            <input
-              id="multi-room-mode"
-              type="checkbox"
-              onchange="toggleMultiRoomMode()"
-              class="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span>복수 호실 통합 공사 (선택 호실 면적 자동 합산)</span>
-          </label>
-          <span id="room-db-count" class="text-[11px] font-medium text-slate-500 tabular-nums">등록 8실</span>
-        </div>
+          <!-- 건물 선택 & 다중 호실 체크 -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label for="building-select" class="block text-xs font-semibold text-slate-700 mb-1">건물 선택</label>
+              <select
+                id="building-select"
+                onchange="onBuildingChange()"
+                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+              ></select>
+            </div>
 
-        <!-- 건물 선택 -->
-        <div>
-          <label for="building-select" class="block text-xs font-semibold text-slate-700 mb-1">건물 선택</label>
-          <select
-            id="building-select"
-            onchange="onBuildingChange()"
-            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
-          ></select>
-        </div>
-
-        <!-- 단일 호실 선택 드롭다운 -->
-        <div id="single-room-wrapper">
-          <label for="room-select" class="block text-xs font-semibold text-slate-700 mb-1">호실 선택</label>
-          <select
-            id="room-select"
-            onchange="onSingleRoomChange()"
-            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
-          ></select>
-        </div>
-
-        <!-- 복수 호실 선택 체크리스트 -->
-        <div id="multi-room-wrapper" class="hidden space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-slate-700">통합 대상 호실 선택</span>
-            <div class="flex gap-2 text-[11px]">
-              <button type="button" onclick="selectAllBuildingRooms(true)" class="text-blue-600 hover:underline cursor-pointer">전체선택</button>
-              <button type="button" onclick="selectAllBuildingRooms(false)" class="text-slate-500 hover:underline cursor-pointer">해제</button>
+            <div class="flex flex-col justify-end">
+              <label class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-xs font-medium text-slate-700 cursor-pointer select-none">
+                <input
+                  id="multi-room-toggle"
+                  type="checkbox"
+                  onchange="onMultiRoomToggle()"
+                  class="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span>여러 호실 면적 합산 선택</span>
+              </label>
             </div>
           </div>
-          <div id="multi-room-list" class="max-h-40 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-100 bg-slate-50/50"></div>
-        </div>
 
-        <!-- 자동 계산된 호실 요약 카드 -->
-        <div class="grid grid-cols-3 gap-2.5 bg-blue-50/70 border border-blue-100 rounded-lg p-3">
-          <div>
-            <div class="text-[11px] text-slate-500">자동 산출 면적</div>
-            <div class="text-sm font-bold text-blue-900 tabular-nums mt-0.5">
-              <span id="calc-area-display">120.0</span> <span class="text-xs font-normal">㎡</span>
-            </div>
-            <div id="calc-pyeong-display" class="text-[10px] text-slate-500 tabular-nums">약 36.3평</div>
-          </div>
-          <div>
-            <div class="text-[11px] text-slate-500">실습실 유형</div>
-            <div id="calc-type-display" class="text-xs font-bold text-slate-800 mt-1">전산실습실</div>
-            <div id="calc-room-badge" class="text-[10px] text-blue-700 mt-0.5 truncate">정보관 301호</div>
-          </div>
-          <div>
-            <div class="text-[11px] text-slate-500">수용 인원</div>
-            <div class="text-sm font-bold text-slate-800 tabular-nums mt-0.5">
-              <span id="calc-capacity-display">40</span> <span class="text-xs font-normal">명</span>
-            </div>
-            <div class="text-[10px] text-slate-500">기준 인원</div>
-          </div>
-        </div>
-
-        <!-- 선택 호실 상세 정보 및 직접 면적 조정 -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-          <div>
-            <label for="lab-type" class="block text-xs font-semibold text-slate-700 mb-1">실습실 유형</label>
+          <!-- 단일 호실 드롭다운 -->
+          <div id="single-room-wrapper">
+            <label for="single-room-select" class="block text-xs font-semibold text-slate-700 mb-1">호실 선택</label>
             <select
-              id="lab-type"
-              onchange="onLabTypeManualChange()"
-              class="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+              id="single-room-select"
+              onchange="onRoomSelectionChange(true)"
+              class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+            ></select>
+          </div>
+
+          <!-- 다중 호실 체크박스 목록 -->
+          <div id="multi-room-wrapper" class="hidden">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-semibold text-slate-700">대상 호실 복수 선택</span>
+              <button
+                type="button"
+                onclick="selectAllRoomsInBuilding()"
+                class="text-[11px] text-blue-600 hover:underline font-medium cursor-pointer"
+              >
+                해당 건물 전체 선택
+              </button>
+            </div>
+            <div id="multi-room-checkboxes" class="max-h-36 overflow-y-auto rounded-lg border border-slate-200 p-2 space-y-1 bg-slate-50/60"></div>
+          </div>
+
+          <!-- 자동 계산 요약 카드 -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-blue-50/70 border border-blue-100 rounded-lg p-3">
+            <div>
+              <div class="text-[11px] text-slate-500">자동 산출 면적</div>
+              <div class="text-sm font-bold text-blue-900 tabular-nums mt-0.5">
+                <span id="calc-area-display">118.4</span> <span class="text-xs font-normal">㎡</span>
+              </div>
+              <div id="calc-pyeong-display" class="text-[10px] text-slate-500 tabular-nums">약 35.8평</div>
+            </div>
+            <div>
+              <div class="text-[11px] text-slate-500">실습실 유형</div>
+              <div id="calc-type-display" class="text-xs font-bold text-slate-800 mt-1">전산실습실</div>
+              <div id="calc-room-badge" class="text-[10px] text-blue-700 mt-0.5 truncate">정보관 101호</div>
+            </div>
+            <div>
+              <div class="text-[11px] text-slate-500">수용인원</div>
+              <div class="text-sm font-bold text-slate-800 tabular-nums mt-0.5">
+                <span id="calc-capacity-display">40</span> <span class="text-xs font-normal">명</span>
+              </div>
+              <div class="text-[10px] text-slate-500">직접 입력</div>
+            </div>
+            <div>
+              <div class="text-[11px] text-slate-500">층고</div>
+              <div class="text-sm font-bold text-slate-800 tabular-nums mt-0.5">
+                <span id="calc-ceiling-display">2.8</span> <span class="text-xs font-normal">m</span>
+              </div>
+              <div class="text-[10px] text-slate-500">직접 입력</div>
+            </div>
+          </div>
+
+          <!-- 유형 / 자동면적 / 수용인원 / 층고 입력 -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label for="lab-type" class="block text-xs font-semibold text-slate-700 mb-1">실습실 유형</label>
+              <select
+                id="lab-type"
+                onchange="syncConditionDisplays()"
+                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+              >
+                <option value="전산실습실">전산실습실</option>
+                <option value="일반강의실">일반강의실</option>
+                <option value="일반실습실">일반실습실</option>
+                <option value="화학실습실">화학실습실</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="lab-area" class="block text-xs font-semibold text-slate-700 mb-1">면적 (㎡ · 자동 계산)</label>
+              <input
+                id="lab-area"
+                type="number"
+                step="0.1"
+                value="118.4"
+                readonly
+                class="w-full rounded-lg border border-slate-200 bg-slate-100 text-slate-800 font-semibold px-3 py-2 text-xs sm:text-sm tabular-nums outline-none cursor-not-allowed"
+              />
+            </div>
+
+            <div>
+              <label for="lab-capacity" class="block text-xs font-semibold text-slate-700 mb-1">수용인원 (명 · 직접 입력)</label>
+              <input
+                id="lab-capacity"
+                type="number"
+                min="1"
+                value="40"
+                oninput="syncConditionDisplays()"
+                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm tabular-nums focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+              />
+            </div>
+
+            <div>
+              <label for="lab-ceiling-height" class="block text-xs font-semibold text-slate-700 mb-1">층고 (m · 직접 입력)</label>
+              <input
+                id="lab-ceiling-height"
+                type="number"
+                step="0.1"
+                min="1.5"
+                max="15.0"
+                value="2.8"
+                oninput="syncConditionDisplays()"
+                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm tabular-nums focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. 공사 범위·주요 공사내용·환경개선 수준 카드 -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5 space-y-4">
+          <div class="border-b border-slate-100 pb-3">
+            <h2 class="text-sm font-bold text-slate-900">2. 환경개선 조건 설정</h2>
+            <p class="text-xs text-slate-500 mt-0.5">주요 공사내용과 환경개선 수준에 따라 예산이 산출됩니다.</p>
+          </div>
+
+          <div>
+            <label for="project-title" class="block text-xs font-semibold text-slate-700 mb-1">공사명</label>
+            <input
+              id="project-title"
+              type="text"
+              value="정보관 101호 전산실습실 환경개선 공사"
+              oninput="recalculateAll()"
+              class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+            />
+          </div>
+
+          <!-- 주요 공사내용 선택 -->
+          <div>
+            <label for="major-work-type" class="block text-xs font-semibold text-slate-700 mb-1">주요 공사내용</label>
+            <select
+              id="major-work-type"
+              onchange="onMajorWorkTypeChange()"
+              class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
             >
-              <option value="전산실습실">전산실습실</option>
-              <option value="일반강의실">일반강의실</option>
-              <option value="일반실습실">일반실습실</option>
-              <option value="화학실습실">화학실습실</option>
+              <option value="전체적인 환경개선">전체적인 환경개선</option>
+              <option value="벽, 천장, 바닥 등 부분적 환경개선">벽, 천장, 바닥 등 부분적 환경개선</option>
+              <option value="전기, 통신설비 환경개선">전기, 통신설비 환경개선</option>
             </select>
           </div>
+
+          <!-- 환경개선 수준 선택 (화면에는 수준 명칭만 표시, 내부 산출에만 배율 반영) -->
           <div>
-            <label for="lab-area" class="block text-xs font-semibold text-slate-700 mb-1">면적 (㎡)</label>
-            <input
-              id="lab-area"
-              type="number"
-              step="0.1"
-              min="1"
-              value="120.0"
-              oninput="syncAreaDisplays()"
-              class="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-xs sm:text-sm tabular-nums focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
-            />
+            <label class="block text-xs font-semibold text-slate-700 mb-1.5">환경개선 수준</label>
+            <div id="improvement-level-group" class="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                data-level="최대"
+                onclick="selectImprovementLevel('최대')"
+                class="level-btn py-2 px-3 rounded-lg border text-xs font-semibold transition cursor-pointer border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+              >
+                최대
+              </button>
+              <button
+                type="button"
+                data-level="중간"
+                onclick="selectImprovementLevel('중간')"
+                class="level-btn py-2 px-3 rounded-lg border text-xs font-semibold transition cursor-pointer border-blue-600 bg-blue-600 text-white shadow-sm"
+              >
+                중간
+              </button>
+              <button
+                type="button"
+                data-level="최소"
+                onclick="selectImprovementLevel('최소')"
+                class="level-btn py-2 px-3 rounded-lg border text-xs font-semibold transition cursor-pointer border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+              >
+                최소
+              </button>
+            </div>
+            <input type="hidden" id="improvement-level" value="중간" />
           </div>
+
+          <!-- 세부 공종 체크박스 -->
           <div>
-            <label for="lab-capacity" class="block text-xs font-semibold text-slate-700 mb-1">수용인원 (명)</label>
-            <input
-              id="lab-capacity"
-              type="number"
-              min="1"
-              value="40"
-              oninput="syncAreaDisplays()"
-              class="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-xs sm:text-sm tabular-nums focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
-            />
+            <span class="block text-xs font-semibold text-slate-700 mb-1.5">세부 포함 공종</span>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+              <label class="flex items-center gap-1.5 p-2 rounded-lg border border-slate-200 bg-slate-50/70 cursor-pointer">
+                <input type="checkbox" id="scope-demolition" checked onchange="recalculateAll()" class="rounded text-blue-600" />
+                <span>가설·철거</span>
+              </label>
+              <label class="flex items-center gap-1.5 p-2 rounded-lg border border-slate-200 bg-slate-50/70 cursor-pointer">
+                <input type="checkbox" id="scope-architectural" checked onchange="recalculateAll()" class="rounded text-blue-600" />
+                <span>건축·마감</span>
+              </label>
+              <label class="flex items-center gap-1.5 p-2 rounded-lg border border-slate-200 bg-slate-50/70 cursor-pointer">
+                <input type="checkbox" id="scope-electrical" checked onchange="recalculateAll()" class="rounded text-blue-600" />
+                <span>전기·통신</span>
+              </label>
+              <label class="flex items-center gap-1.5 p-2 rounded-lg border border-slate-200 bg-slate-50/70 cursor-pointer">
+                <input type="checkbox" id="scope-mechanical" checked onchange="recalculateAll()" class="rounded text-blue-600" />
+                <span>기계·설비</span>
+              </label>
+              <label class="flex items-center gap-1.5 p-2 rounded-lg border border-slate-200 bg-slate-50/70 cursor-pointer col-span-2 sm:col-span-1">
+                <input type="checkbox" id="scope-furniture" checked onchange="recalculateAll()" class="rounded text-blue-600" />
+                <span>실험·강의가구</span>
+              </label>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <!-- 2. 공사 범위·주요 공사내용·환경개선 수준 설정 -->
-      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5 space-y-4">
-        <div>
-          <h2 class="text-sm font-bold text-slate-900">2. 공사 조건 및 환경개선 수준</h2>
-          <p class="text-xs text-slate-500 mt-0.5">주요 공사내용과 환경개선 수준에 따라 물량과 예산이 산출됩니다.</p>
-        </div>
-
-        <div>
-          <label for="project-title" class="block text-xs font-semibold text-slate-700 mb-1">공사명</label>
-          <input
-            id="project-title"
-            type="text"
-            value="정보관 301호 전산실습실 환경개선 공사"
-            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
-          />
-        </div>
-
-        <!-- 주요 공사내용 -->
-        <div>
-          <label for="major-work-type" class="block text-xs font-semibold text-slate-700 mb-1">주요 공사내용</label>
-          <select
-            id="major-work-type"
-            onchange="onMajorWorkTypeChange()"
-            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
-          >
-            <option value="전체적인 환경개선">전체적인 환경개선</option>
-            <option value="벽, 천장, 바닥 등 부분적 환경개선">벽, 천장, 바닥 등 부분적 환경개선</option>
-            <option value="전기, 통신설비 환경개선">전기, 통신설비 환경개선</option>
-          </select>
-        </div>
-
-        <!-- 환경개선 수준 -->
-        <div>
-          <label for="improvement-level" class="block text-xs font-semibold text-slate-700 mb-1">환경개선 수준</label>
-          <select
-            id="improvement-level"
-            onchange="onImprovementLevelChange()"
-            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
-          >
-            <option value="최대">최대</option>
-            <option value="중간" selected>중간</option>
-            <option value="최소">최소</option>
-          </select>
-        </div>
-
-        <!-- 세부 대상 공종 체크박스 -->
-        <div>
-          <span class="block text-xs font-semibold text-slate-700 mb-1.5">반영 대상 공종</span>
-          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            <label class="flex items-center gap-1.5 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 cursor-pointer">
-              <input type="checkbox" name="scope" value="가설·철거" checked onchange="recalculateAll()" class="rounded border-slate-300 text-blue-600" />
-              <span>가설·철거</span>
-            </label>
-            <label class="flex items-center gap-1.5 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 cursor-pointer">
-              <input type="checkbox" name="scope" value="건축·마감" checked onchange="recalculateAll()" class="rounded border-slate-300 text-blue-600" />
-              <span>건축·마감</span>
-            </label>
-            <label class="flex items-center gap-1.5 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 cursor-pointer">
-              <input type="checkbox" name="scope" value="전기·통신" checked onchange="recalculateAll()" class="rounded border-slate-300 text-blue-600" />
-              <span>전기·통신</span>
-            </label>
-            <label class="flex items-center gap-1.5 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 cursor-pointer">
-              <input type="checkbox" name="scope" value="기계·설비" checked onchange="recalculateAll()" class="rounded border-slate-300 text-blue-600" />
-              <span>기계·설비</span>
-            </label>
-            <label class="flex items-center gap-1.5 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 cursor-pointer col-span-2 sm:col-span-2">
-              <input type="checkbox" name="scope" value="실험가구·특수설비" checked onchange="recalculateAll()" class="rounded border-slate-300 text-blue-600" />
-              <span>실험가구·특수설비</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- 현장 요구사항 및 사진/도면 -->
-        <div>
-          <label for="requirements" class="block text-xs font-semibold text-slate-700 mb-1">현장 요구사항 및 특이사항</label>
-          <textarea
-            id="requirements"
-            rows="3"
-            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
-            placeholder="예: 노후 이중바닥 및 LED 조명 교체, 100A 분전반 증설, 학생용 책상 20조 교체 등"
-          ></textarea>
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">현장 사진 또는 평면도 (선택)</label>
-          <input
-            id="site-images"
-            type="file"
-            accept="image/*"
-            multiple
-            onchange="handleImagePreview(event)"
-            class="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
-          />
-          <div id="image-preview-list" class="grid grid-cols-3 gap-2 mt-2"></div>
-        </div>
-
-        <!-- 산출 실행 버튼 -->
-        <div class="pt-1 flex flex-col sm:flex-row gap-2">
-          <button
-            type="button"
-            id="btn-ai-estimate"
-            onclick="runAiEstimation()"
-            class="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-sm transition cursor-pointer"
-          >
-            AI 물량 산출 및 예산 계산
-          </button>
-          <button
-            type="button"
-            onclick="runRuleEstimation()"
-            class="py-2.5 px-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-semibold transition cursor-pointer"
-          >
-            표준 규칙 산출
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- 우측 패널: 예산 요약, 과거 실적 비교, 세부산출내역서, 원가계산서 (7 cols) -->
-    <section class="lg:col-span-7 space-y-5">
-
-      <!-- 상단 핵심 예산 KPI 카드 -->
-      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5 print-break-avoid">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-3 mb-4">
+          <!-- 요구사항 메모 -->
           <div>
-            <div class="text-xs font-semibold text-blue-600">최종 추정 공사예산 (천원 단위 절사)</div>
-            <div id="kpi-grand-total" class="text-2xl sm:text-3xl font-bold text-slate-900 tabular-nums mt-0.5">0 원</div>
+            <label for="requirements" class="block text-xs font-semibold text-slate-700 mb-1">세부 요구사항 메모</label>
+            <textarea
+              id="requirements"
+              rows="2"
+              placeholder="예: 노후 바닥 및 조명 교체, LAN 배선 정리, 흄후드 또는 방음 보완 등"
+              class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+            ></textarea>
           </div>
-          <div class="text-left sm:text-right text-xs text-slate-500 space-y-0.5 tabular-nums">
-            <div>㎡당 단가: <strong id="kpi-unit-area-cost" class="text-slate-800">0 원/㎡</strong></div>
-            <div>공급가액: <strong id="kpi-supply-price" class="text-slate-700">0 원</strong> · 부가세: <strong id="kpi-vat" class="text-slate-700">0 원</strong></div>
-            <div>적용 조건: <span id="kpi-condition-summary" class="font-semibold text-slate-800">전체적인 환경개선 · 중간</span></div>
+
+          <!-- 산출 실행 버튼 -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+            <button
+              type="button"
+              onclick="runRuleEstimation(true)"
+              class="w-full py-2.5 px-4 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold shadow-sm transition cursor-pointer"
+            >
+              표준 기준 예산 산출
+            </button>
+            <button
+              type="button"
+              onclick="runAiEstimation()"
+              class="w-full py-2.5 px-4 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-semibold shadow-sm transition cursor-pointer"
+            >
+              AI 물량 분석 산출
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 우측 패널: 예산 요약, 원가계산서 및 세부산출내역서 (7컬럼) -->
+      <section class="lg:col-span-7 space-y-5">
+
+        <!-- KPI 요약 카드 -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 print-break-inside-avoid">
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+            <div class="text-xs font-medium text-slate-500">최종 추정사업비 (천원 절사)</div>
+            <div id="kpi-grand-total" class="text-xl sm:text-2xl font-bold text-blue-900 tabular-nums mt-1">0원</div>
+            <div id="kpi-condition-summary" class="text-[11px] text-slate-500 mt-1 truncate">전체적인 환경개선 · 중간</div>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+            <div class="text-xs font-medium text-slate-500">㎡당 추정단가</div>
+            <div id="kpi-unit-area-cost" class="text-xl sm:text-2xl font-bold text-slate-900 tabular-nums mt-1">0 원/㎡</div>
+            <div class="text-[11px] text-slate-500 mt-1">공급가액 + 부가가치세 + 예비비</div>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+            <div class="text-xs font-medium text-slate-500">공급가액 / 부가가치세</div>
+            <div id="kpi-supply-price" class="text-base sm:text-lg font-bold text-slate-800 tabular-nums mt-1">0원</div>
+            <div id="kpi-vat" class="text-[11px] text-slate-500 tabular-nums mt-1">부가세: 0원</div>
           </div>
         </div>
 
-        <!-- AI / 규칙 산출 요약 박스 -->
-        <div id="estimation-summary-box" class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-700 leading-relaxed">
-          <span class="font-semibold text-slate-900">산출 개요: </span>
-          <span id="estimation-summary-text">좌측에서 호실을 선택하고 [AI 물량 산출 및 예산 계산] 또는 [표준 규칙 산출]을 실행하세요.</span>
-        </div>
-
-        <!-- 과거 유사 공사 실적 비교 벤치마크 -->
-        <div id="benchmark-panel" class="mt-3 pt-3 border-t border-slate-100 text-xs">
-          <div class="flex items-center justify-between mb-1.5">
-            <span class="font-semibold text-slate-700">과거 공사 실적 ㎡당 단가 비교</span>
-            <button type="button" onclick="openDataModal('history')" class="text-[11px] text-blue-600 hover:underline no-print cursor-pointer">실적 DB 관리</button>
+        <!-- 산출 현황 배너 및 내보내기 버튼 -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 no-print">
+          <p id="estimation-summary-text" class="text-xs text-slate-600 leading-relaxed">
+            호실과 조건을 선택하여 예산을 산출하세요.
+          </p>
+          <div class="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onclick="exportToExcel()"
+              class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition cursor-pointer"
+            >
+              엑셀(.xlsx) 내보내기
+            </button>
+            <button
+              type="button"
+              onclick="window.print()"
+              class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 text-xs font-semibold transition cursor-pointer"
+            >
+              인쇄 / PDF
+            </button>
           </div>
-          <div id="benchmark-content" class="text-slate-600 bg-slate-50/70 rounded-lg p-2.5 border border-slate-100">
-            과거 실적 데이터와 비교 분석 중입니다.
+        </div>
+
+        <!-- 세부산출내역서 테이블 -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="px-4 sm:px-5 py-3.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 class="text-sm font-bold text-slate-900">공종별 세부산출내역서</h2>
+              <p class="text-[11px] text-slate-500">수량을 직접 수정하면 원가계산서와 총사업비가 즉시 재계산됩니다.</p>
+            </div>
+            <button
+              type="button"
+              onclick="addBoqItemRow()"
+              class="no-print px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-semibold transition cursor-pointer"
+            >
+              + 항목 추가
+            </button>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-600">
+                  <th class="py-2.5 px-3">공종</th>
+                  <th class="py-2.5 px-3">품목명 / 규격</th>
+                  <th class="py-2.5 px-2 text-center">단위</th>
+                  <th class="py-2.5 px-2 text-right">수량</th>
+                  <th class="py-2.5 px-3 text-right">합계금액</th>
+                  <th class="py-2.5 px-2 text-center no-print">삭제</th>
+                </tr>
+              </thead>
+              <tbody id="boq-table-body" class="divide-y divide-slate-100 text-xs"></tbody>
+            </table>
           </div>
         </div>
-      </div>
 
-      <!-- 세부산출내역서 (Human-in-the-Loop 편집 가능) -->
-      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-slate-100">
-          <div>
-            <h2 class="text-sm font-bold text-slate-900">3. 공종별 세부산출내역서</h2>
-            <p class="text-xs text-slate-500 mt-0.5">수량이나 품목을 직접 수정하면 원가계산서와 총예산이 즉시 재계산됩니다.</p>
+        <!-- 공사 원가계산서 요약표 -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print-break-inside-avoid">
+          <div class="px-4 sm:px-5 py-3.5 border-b border-slate-200">
+            <h2 class="text-sm font-bold text-slate-900">공사 원가계산서 요약</h2>
           </div>
-          <button
-            type="button"
-            onclick="addBoqRow()"
-            class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition no-print self-start sm:self-auto cursor-pointer"
-          >
-            + 내역 행 추가
-          </button>
-        </div>
-
-        <!-- 공종 필터 탭 -->
-        <div id="category-tabs" class="flex items-center gap-1.5 overflow-x-auto py-3 no-print"></div>
-
-        <!-- 내역 테이블 -->
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr class="bg-slate-50 text-slate-600 border-y border-slate-200">
-                <th class="py-2 px-2 font-semibold">공종</th>
-                <th class="py-2 px-2 font-semibold">품명 및 규격</th>
-                <th class="py-2 px-2 font-semibold text-center">단위</th>
-                <th class="py-2 px-2 font-semibold text-right">수량</th>
-                <th class="py-2 px-2 font-semibold text-right">합계단가</th>
-                <th class="py-2 px-2 font-semibold text-right">공사비 합계</th>
-                <th class="py-2 px-2 font-semibold no-print text-center">삭제</th>
-              </tr>
-            </thead>
-            <tbody id="boq-table-body" class="divide-y divide-slate-100"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- 공공공사 원가계산서 요약표 -->
-      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5 print-break-avoid">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-slate-100 mb-3">
-          <div>
-            <h2 class="text-sm font-bold text-slate-900">4. 공사 원가계산서</h2>
-            <p class="text-xs text-slate-500 mt-0.5">직접공사비 및 제경비 요율 기준 자동 산출</p>
+          <div class="p-4 sm:p-5">
+            <dl id="cost-statement-rows" class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-xs tabular-nums"></dl>
           </div>
-          <button
-            type="button"
-            onclick="resetCostRates()"
-            class="text-xs text-slate-500 hover:text-slate-800 underline no-print self-start sm:self-auto cursor-pointer"
-          >
-            기본 요율 복원
-          </button>
         </div>
-
-        <!-- 제경비 요율 조정 바 -->
-        <div class="grid grid-cols-2 sm:grid-cols-6 gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2.5 mb-4 text-[11px] no-print">
-          <label class="space-y-1">
-            <span class="block text-slate-600">간접노무비(%)</span>
-            <input type="number" step="0.5" id="rate-indirect-labor" onchange="onRatesInputChange()" class="w-full rounded border border-slate-300 bg-white px-1.5 py-1 text-right tabular-nums" />
-          </label>
-          <label class="space-y-1">
-            <span class="block text-slate-600">기타경비(%)</span>
-            <input type="number" step="0.5" id="rate-other-expense" onchange="onRatesInputChange()" class="w-full rounded border border-slate-300 bg-white px-1.5 py-1 text-right tabular-nums" />
-          </label>
-          <label class="space-y-1">
-            <span class="block text-slate-600">일반관리비(%)</span>
-            <input type="number" step="0.5" id="rate-general-admin" onchange="onRatesInputChange()" class="w-full rounded border border-slate-300 bg-white px-1.5 py-1 text-right tabular-nums" />
-          </label>
-          <label class="space-y-1">
-            <span class="block text-slate-600">이윤(%)</span>
-            <input type="number" step="0.5" id="rate-profit" onchange="onRatesInputChange()" class="w-full rounded border border-slate-300 bg-white px-1.5 py-1 text-right tabular-nums" />
-          </label>
-          <label class="space-y-1">
-            <span class="block text-slate-600">부가가치세(%)</span>
-            <input type="number" step="0.5" id="rate-vat" onchange="onRatesInputChange()" class="w-full rounded border border-slate-300 bg-white px-1.5 py-1 text-right tabular-nums" />
-          </label>
-          <label class="space-y-1">
-            <span class="block text-slate-600">예비비(%)</span>
-            <input type="number" step="0.5" id="rate-contingency" onchange="onRatesInputChange()" class="w-full rounded border border-slate-300 bg-white px-1.5 py-1 text-right tabular-nums" />
-          </label>
-        </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full text-xs border-collapse">
-            <thead>
-              <tr class="bg-slate-50 text-slate-600 border-y border-slate-200">
-                <th class="py-2 px-3 text-left font-semibold">비목</th>
-                <th class="py-2 px-3 text-left font-semibold">산출 기준</th>
-                <th class="py-2 px-3 text-right font-semibold">금액 (원)</th>
-              </tr>
-            </thead>
-            <tbody id="cost-statement-body" class="divide-y divide-slate-100 tabular-nums"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
+      </section>
+    </div>
   </main>
 
-  <!-- 모달 1: 호실·면적 DB 및 과거 공사 실적 DB 관리 -->
-  <div id="data-modal" class="fixed inset-0 z-50 hidden bg-slate-900/60 flex items-center justify-center p-4 no-print">
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+  <!-- 공용 모달 백드롭 -->
+  <div id="modal-backdrop" class="fixed inset-0 z-40 bg-slate-950/60 hidden items-center justify-center p-4 no-print">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden">
       <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <button
-            id="modal-tab-rooms"
-            type="button"
-            onclick="switchDataModalTab('rooms')"
-            class="px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white cursor-pointer"
-          >
-            호실·면적 DB
-          </button>
-          <button
-            id="modal-tab-history"
-            type="button"
-            onclick="switchDataModalTab('history')"
-            class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 cursor-pointer"
-          >
-            과거 공사 실적 DB
-          </button>
-        </div>
-        <button type="button" onclick="closeDataModal()" class="text-slate-400 hover:text-slate-700 text-lg font-bold px-2 cursor-pointer">✕</button>
+        <h3 id="modal-title" class="text-base font-bold text-slate-900">설정</h3>
+        <button
+          type="button"
+          onclick="closeDbModal()"
+          class="text-slate-400 hover:text-slate-700 text-lg font-bold px-2 cursor-pointer"
+        >
+          ✕
+        </button>
       </div>
 
-      <div class="p-5 overflow-y-auto space-y-4 flex-1 text-xs">
-        <!-- 호실 DB 탭 -->
-        <div id="data-panel-rooms" class="space-y-4">
-          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-slate-50 border border-slate-200 rounded-xl p-3">
-            <div>
-              <div class="font-bold text-slate-800">엑셀(.xlsx, .xls, .csv) 파일로 호실·면적 데이터 불러오기</div>
-              <div class="text-slate-500 mt-0.5">권장 열: 건물명, 호실, 실습실유형(전산실습실/일반강의실/일반실습실/화학실습실), 면적, 수용인원</div>
-            </div>
-            <label class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold cursor-pointer shrink-0 text-center">
-              엑셀 파일 선택
-              <input type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleRoomExcelUpload(event)" />
-            </label>
-          </div>
+      <div id="modal-body" class="p-5 overflow-y-auto space-y-4 text-xs"></div>
 
-          <div>
-            <label class="block font-semibold text-slate-700 mb-1">엑셀 데이터 붙여넣기 (탭/CSV 구분: 건물명, 호실, 실습실유형, 면적㎡, 수용인원)</label>
-            <textarea
-              id="paste-rooms-input"
-              rows="5"
-              class="w-full rounded-lg border border-slate-300 p-2.5 font-mono text-[11px]"
-              placeholder="정보관&#9;301호&#9;전산실습실&#9;120.0&#9;40"
-            ></textarea>
-            <div class="flex justify-end gap-2 mt-2">
-              <button type="button" onclick="applyPastedRooms()" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold cursor-pointer">
-                붙여넣기 데이터로 교체
-              </button>
-            </div>
-          </div>
-
-          <div class="overflow-x-auto border border-slate-200 rounded-lg max-h-60">
-            <table class="w-full text-left border-collapse">
-              <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
-                <tr>
-                  <th class="py-2 px-2.5">건물명</th>
-                  <th class="py-2 px-2.5">호실</th>
-                  <th class="py-2 px-2.5">실습실유형</th>
-                  <th class="py-2 px-2.5 text-right">면적(㎡)</th>
-                  <th class="py-2 px-2.5 text-right">수용인원</th>
-                </tr>
-              </thead>
-              <tbody id="modal-rooms-tbody" class="divide-y divide-slate-100 tabular-nums"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- 과거 실적 DB 탭 -->
-        <div id="data-panel-history" class="hidden space-y-4">
-          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-slate-50 border border-slate-200 rounded-xl p-3">
-            <div>
-              <div class="font-bold text-slate-800">과거 시행 공사비 실적 엑셀(.xlsx, .csv) 업로드</div>
-              <div class="text-slate-500 mt-0.5">권장 열: 공사명, 실습실유형, 면적, 총공사비, 시행연도, 비고</div>
-            </div>
-            <label class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold cursor-pointer shrink-0 text-center">
-              실적 엑셀 선택
-              <input type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleHistoryExcelUpload(event)" />
-            </label>
-          </div>
-
-          <div>
-            <label class="block font-semibold text-slate-700 mb-1">과거 공사 실적 붙여넣기 (공사명, 실습실유형, 면적㎡, 총공사비(원), 연도)</label>
-            <textarea
-              id="paste-history-input"
-              rows="4"
-              class="w-full rounded-lg border border-slate-300 p-2.5 font-mono text-[11px]"
-              placeholder="정보관 202호 전산실습실 개선&#9;전산실습실&#9;115.0&#9;98500000&#9;2025"
-            ></textarea>
-            <div class="flex justify-end mt-2">
-              <button type="button" onclick="applyPastedHistory()" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold cursor-pointer">
-                과거 실적 데이터 교체
-              </button>
-            </div>
-          </div>
-
-          <div class="overflow-x-auto border border-slate-200 rounded-lg max-h-60">
-            <table class="w-full text-left border-collapse">
-              <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
-                <tr>
-                  <th class="py-2 px-2.5">공사명</th>
-                  <th class="py-2 px-2.5">실습실유형</th>
-                  <th class="py-2 px-2.5 text-right">면적(㎡)</th>
-                  <th class="py-2 px-2.5 text-right">총공사비(원)</th>
-                  <th class="py-2 px-2.5 text-right">㎡당 단가</th>
-                  <th class="py-2 px-2.5 text-center">연도</th>
-                </tr>
-              </thead>
-              <tbody id="modal-history-tbody" class="divide-y divide-slate-100 tabular-nums"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 flex justify-end">
-        <button type="button" onclick="closeDataModal()" class="px-4 py-2 rounded-lg bg-slate-800 text-white text-xs font-semibold cursor-pointer">
+      <div id="modal-footer" class="px-5 py-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onclick="closeDbModal()"
+          class="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-semibold cursor-pointer"
+        >
           닫기
         </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 모달 2: 표준 단가표 관리 -->
-  <div id="db-modal" class="fixed inset-0 z-50 hidden bg-slate-900/60 flex items-center justify-center p-4 no-print">
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden">
-      <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-        <div>
-          <h3 class="text-sm font-bold text-slate-900">표준 단가표 관리</h3>
-          <p class="text-xs text-slate-500">품목별 재료비·노무비·경비 단가를 수정하거나 신규 품목을 추가할 수 있습니다.</p>
-        </div>
-        <button type="button" onclick="closeDbModal()" class="text-slate-400 hover:text-slate-700 text-lg font-bold px-2 cursor-pointer">✕</button>
-      </div>
-
-      <div class="p-5 overflow-y-auto space-y-4 flex-1 text-xs">
-        <div class="grid grid-cols-2 sm:grid-cols-7 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
-          <input id="new-db-code" type="text" placeholder="코드(예: ELC-099)" class="rounded border border-slate-300 px-2 py-1.5 bg-white" />
-          <select id="new-db-cat" class="rounded border border-slate-300 px-2 py-1.5 bg-white">
-            <option value="가설·철거">가설·철거</option>
-            <option value="건축·마감">건축·마감</option>
-            <option value="전기·통신">전기·통신</option>
-            <option value="기계·설비">기계·설비</option>
-            <option value="실험가구·특수설비">실험가구·특수설비</option>
-          </select>
-          <input id="new-db-name" type="text" placeholder="품명" class="rounded border border-slate-300 px-2 py-1.5 bg-white" />
-          <input id="new-db-spec" type="text" placeholder="규격" class="rounded border border-slate-300 px-2 py-1.5 bg-white" />
-          <input id="new-db-unit" type="text" placeholder="단위(㎡/식)" class="rounded border border-slate-300 px-2 py-1.5 bg-white" />
-          <input id="new-db-prices" type="text" placeholder="재료,노무,경비" class="rounded border border-slate-300 px-2 py-1.5 bg-white" />
-          <button type="button" onclick="addDbItem()" class="rounded bg-blue-600 hover:bg-blue-500 text-white font-semibold px-2 py-1.5 cursor-pointer">
-            추가
-          </button>
-        </div>
-
-        <div class="overflow-x-auto border border-slate-200 rounded-lg max-h-96">
-          <table class="w-full text-left border-collapse">
-            <thead class="bg-slate-50 border-b border-slate-200 sticky top-0">
-              <tr>
-                <th class="py-2 px-2">코드</th>
-                <th class="py-2 px-2">공종</th>
-                <th class="py-2 px-2">품명</th>
-                <th class="py-2 px-2">규격</th>
-                <th class="py-2 px-2 text-center">단위</th>
-                <th class="py-2 px-2 text-right">재료비</th>
-                <th class="py-2 px-2 text-right">노무비</th>
-                <th class="py-2 px-2 text-right">경비</th>
-              </tr>
-            </thead>
-            <tbody id="db-modal-tbody" class="divide-y divide-slate-100 tabular-nums"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 flex justify-end">
-        <button type="button" onclick="closeDbModal()" class="px-4 py-2 rounded-lg bg-slate-800 text-white text-xs font-semibold cursor-pointer">
-          적용 및 닫기
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 모달 3: API 키 및 데이터 백업/복원 -->
-  <div id="settings-modal" class="fixed inset-0 z-50 hidden bg-slate-900/60 flex items-center justify-center p-4 no-print">
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-lg w-full overflow-hidden">
-      <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-        <h3 class="text-sm font-bold text-slate-900">Gemini API 및 데이터 백업 설정</h3>
-        <button type="button" onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-700 text-lg font-bold px-2 cursor-pointer">✕</button>
-      </div>
-
-      <div class="p-5 space-y-4 text-xs">
-        <div>
-          <label for="gemini-api-key" class="block font-semibold text-slate-700 mb-1">Gemini API Key (선택)</label>
-          <input
-            id="gemini-api-key"
-            type="password"
-            placeholder="AIza... (미입력 시 지능형 규칙 산출 엔진 자동 동작)"
-            class="w-full rounded-lg border border-slate-300 px-3 py-2 bg-white"
-          />
-          <p class="text-[11px] text-slate-500 mt-1">
-            API 키 입력 시 현장 사진·요구사항 기반 AI 물량 산출이 수행되며, 오류나 미입력 시에도 규칙 기반 물량 산출이 즉시 동작합니다.
-          </p>
-        </div>
-
-        <div class="border-t border-slate-100 pt-4 space-y-2">
-          <div class="font-semibold text-slate-700">전체 기준 데이터 백업 / 복원 / 초기화</div>
-          <div class="flex flex-wrap gap-2">
-            <button type="button" onclick="exportBackupJson()" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold border border-slate-300 cursor-pointer">
-              JSON 백업 다운로드
-            </button>
-            <label class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold border border-slate-300 cursor-pointer">
-              JSON 복원
-              <input type="file" accept=".json,application/json" class="hidden" onchange="importBackupJson(event)" />
-            </label>
-            <button type="button" onclick="resetAllStoredData()" class="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold border border-rose-200 cursor-pointer">
-              초기 데이터로 리셋
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
-        <button type="button" onclick="closeSettingsModal()" class="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 font-semibold cursor-pointer">취소</button>
-        <button type="button" onclick="saveSettingsModal()" class="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold cursor-pointer">저장</button>
       </div>
     </div>
   </div>
@@ -740,16 +494,16 @@
     // 1. 상수 및 기본 데이터 정의
     // =========================================================================
     const STORAGE_KEYS = {
-      ROOMS: "univ_lab_budget_rooms_v1",
-      HISTORY: "univ_lab_budget_history_v1",
-      PRICE_DB: "univ_lab_budget_price_db_v1",
-      RATES: "univ_lab_budget_rates_v1",
-      API_KEY: "univ_lab_budget_api_key_v1"
+      ROOMS: "univ_lab_budget_rooms_v2",
+      PRICE_DB: "univ_lab_budget_price_stable_v1",
+      RATES: "univ_lab_budget_rates_stable_v1",
+      API_KEY: "univ_lab_budget_apikey_stable_v1"
     };
 
     const LAB_TYPES = ["전산실습실", "일반강의실", "일반실습실", "화학실습실"];
 
-    const LEVEL_MULTIPLIERS = {
+    // 환경개선 수준별 내부 적용 배율 (화면 미표시)
+    const IMPROVEMENT_LEVEL_FACTORS = {
       "최대": 1.5,
       "중간": 1.3,
       "최소": 1.0
@@ -764,123 +518,76 @@
       contingency: 5.0
     };
 
+    // 호실 데이터_2.xlsx 기준 호실 현황 DB
     const DEFAULT_ROOMS = [
-      { id: "rm-1", building: "정보관", roomNo: "301호", labType: "전산실습실", area: 120.0, capacity: 40 },
-      { id: "rm-2", building: "정보관", roomNo: "302호", labType: "전산실습실", area: 105.0, capacity: 36 },
-      { id: "rm-3", building: "공학관", roomNo: "405호", labType: "일반실습실", area: 135.0, capacity: 32 },
-      { id: "rm-4", building: "공학관", roomNo: "201호", labType: "일반강의실", area: 96.0, capacity: 48 },
-      { id: "rm-5", building: "자연과학관", roomNo: "205호", labType: "화학실습실", area: 95.4, capacity: 24 },
-      { id: "rm-6", building: "자연과학관", roomNo: "208호", labType: "화학실습실", area: 88.0, capacity: 20 },
-      { id: "rm-7", building: "인문사회관", roomNo: "103호", labType: "일반강의실", area: 84.0, capacity: 42 },
-      { id: "rm-8", building: "창의관", roomNo: "501호", labType: "일반실습실", area: 150.0, capacity: 30 }
+      { id: "rm2-101", building: "정보관", roomNo: "101호", labType: "전산실습실", area: 122.0, capacity: 40, ceilingHeight: 2.8 },
+      { id: "rm2-102", building: "정보관", roomNo: "102호", labType: "전산실습실", area: 108.5, capacity: 36, ceilingHeight: 2.8 },
+      { id: "rm2-201", building: "정보관", roomNo: "201호", labType: "일반강의실", area: 92.0, capacity: 45, ceilingHeight: 2.7 },
+      { id: "rm2-202", building: "정보관", roomNo: "202호", labType: "전산실습실", area: 130.4, capacity: 44, ceilingHeight: 2.9 },
+      { id: "rm2-301", building: "공학관", roomNo: "301호", labType: "일반실습실", area: 148.0, capacity: 32, ceilingHeight: 3.4 },
+      { id: "rm2-302", building: "공학관", roomNo: "302호", labType: "일반실습실", area: 136.5, capacity: 30, ceilingHeight: 3.4 },
+      { id: "rm2-305", building: "공학관", roomNo: "305호", labType: "일반강의실", area: 96.2, capacity: 48, ceilingHeight: 3.0 },
+      { id: "rm2-401", building: "자연과학관", roomNo: "401호", labType: "화학실습실", area: 104.6, capacity: 24, ceilingHeight: 3.2 },
+      { id: "rm2-402", building: "자연과학관", roomNo: "402호", labType: "화학실습실", area: 95.8, capacity: 22, ceilingHeight: 3.2 },
+      { id: "rm2-405", building: "자연과학관", roomNo: "405호", labType: "일반강의실", area: 82.0, capacity: 40, ceilingHeight: 2.8 },
+      { id: "rm2-501", building: "인문사회관", roomNo: "501호", labType: "일반강의실", area: 88.4, capacity: 42, ceilingHeight: 2.7 },
+      { id: "rm2-502", building: "인문사회관", roomNo: "502호", labType: "일반강의실", area: 79.0, capacity: 36, ceilingHeight: 2.7 }
     ];
 
-    const DEFAULT_HISTORY = [
-      { id: "his-1", title: "정보관 202호 전산실습실 환경개선", labType: "전산실습실", area: 115.0, totalCost: 98500000, year: 2025 },
-      { id: "his-2", title: "공학관 104호 일반강의실 개선공사", labType: "일반강의실", area: 92.0, totalCost: 54200000, year: 2025 },
-      { id: "his-3", title: "공학관 308호 일반실습실 환경개선", labType: "일반실습실", area: 130.0, totalCost: 112000000, year: 2024 },
-      { id: "his-4", title: "자연과학관 201호 화학실습실 개선공사", labType: "화학실습실", area: 94.0, totalCost: 164000000, year: 2025 }
-    ];
-
-    const DEFAULT_PRICE_DB = [
-      { code: "DEM-001", category: "가설·철거", name: "바닥·천장 마감재 철거", spec: "기존 데코타일·텍스 철거", unit: "㎡", material: 0, labor: 12500, expense: 1500 },
-      { code: "DEM-002", category: "가설·철거", name: "기존 실험대·가구 철거 및 반출", spec: "고정형 실험대·책상 해체", unit: "식", material: 0, labor: 1450000, expense: 250000 },
-      { code: "DEM-003", category: "가설·철거", name: "건설폐기물 수집·운반 및 처리", spec: "혼합·폐목재·폐자재 위탁", unit: "ton", material: 0, labor: 18000, expense: 62000 },
-      { code: "DEM-004", category: "가설·철거", name: "가설 칸막이 및 분진·소음 보양", spec: "비닐·합판 보양 시공", unit: "m", material: 24000, labor: 18000, expense: 2000 },
-
-      { code: "ARC-001", category: "건축·마감", name: "고강도 데코타일 시공", spec: "두께 3.0mm, 전사·내오염", unit: "㎡", material: 26000, labor: 14500, expense: 1800 },
-      { code: "ARC-012", category: "건축·마감", name: "악세스플로어(이중바닥) 설치", spec: "H=150mm, 전산실용", unit: "㎡", material: 58000, labor: 22000, expense: 3000 },
-      { code: "ARC-021", category: "건축·마감", name: "흡음 석고텍스 천장 설치", spec: "T9.5mm, 경량철골틀 포함", unit: "㎡", material: 19500, labor: 14500, expense: 1500 },
-      { code: "ARC-030", category: "건축·마감", name: "친환경 수성페인트 도장", spec: "벽면 퍼티·하도·상도 2회", unit: "㎡", material: 8500, labor: 11000, expense: 1000 },
-      { code: "ARC-035", category: "건축·마감", name: "흡음 방음패널 벽면 시공", spec: "차음·흡음 복합패널", unit: "㎡", material: 42000, labor: 23000, expense: 2500 },
-      { code: "ARC-041", category: "건축·마감", name: "방화·방음 출입문 교체", spec: "강화유리·도어클로저 포함", unit: "개소", material: 680000, labor: 240000, expense: 40000 },
-
-      { code: "ELC-005", category: "전기·통신", name: "분전반 교체 및 간선 증설", spec: "100A, 분기 20회로, 접지 포함", unit: "식", material: 1850000, labor: 950000, expense: 120000 },
-      { code: "ELC-008", category: "전기·통신", name: "3상 동력(380V) 배전반 신설", spec: "실습장비 전용 동력선 인입", unit: "식", material: 2600000, labor: 1250000, expense: 160000 },
-      { code: "ELC-011", category: "전기·통신", name: "LED 면조명 등기구 교체", spec: "고효율 40W급 매입·직부형", unit: "등", material: 48000, labor: 19000, expense: 2000 },
-      { code: "ELC-015", category: "전기·통신", name: "접지형 콘센트 증설", spec: "2구 16A 접지 콘센트·배관", unit: "개소", material: 28000, labor: 24000, expense: 2500 },
-      { code: "ELC-020", category: "전기·통신", name: "Cat.6A 랜(LAN) 배선 및 패치패널", spec: "실습석·교탁 통신선 포설", unit: "회선", material: 55000, labor: 38000, expense: 4000 },
-      { code: "ELC-025", category: "전기·통신", name: "교탁·빔프로젝터·AV 배관 정비", spec: "HDMI/전원/음향 배관 정리", unit: "식", material: 950000, labor: 520000, expense: 70000 },
-
-      { code: "MEC-001", category: "기계·설비", name: "천장형 시스템 냉난방기 설치", spec: "냉난방 겸용 패키지(실외기 포함)", unit: "대", material: 2450000, labor: 650000, expense: 140000 },
-      { code: "MEC-005", category: "기계·설비", name: "국소배기 스파이럴 덕트 설치", spec: "아연도금강판 덕트·댐퍼", unit: "m", material: 46000, labor: 34000, expense: 4000 },
-      { code: "MEC-009", category: "기계·설비", name: "유해가스 배기팬 및 스크러버", spec: "내화학 배기팬·활성탄 정화", unit: "식", material: 4800000, labor: 1400000, expense: 250000 },
-      { code: "MEC-012", category: "기계·설비", name: "내산성 폐수 및 급수 배관", spec: "PP/PVC 내산 배관·싱크 연결", unit: "식", material: 1650000, labor: 1100000, expense: 90000 },
-      { code: "MEC-015", category: "기계·설비", name: "집진 및 공압·환기 설비", spec: "실습 분진·열기 배출 계통", unit: "식", material: 2900000, labor: 1150000, expense: 130000 },
-
-      { code: "FUR-003", category: "실험가구·특수설비", name: "전산 실습용 책상(배선덕트형)", spec: "W1600×D800, 전원·LAN 내장", unit: "조", material: 340000, labor: 28000, expense: 10000 },
-      { code: "FUR-008", category: "실험가구·특수설비", name: "내화학성 실험대(중앙·벽면)", spec: "세라믹/에폭시 상판, 하부장", unit: "m", material: 520000, labor: 65000, expense: 18000 },
-      { code: "FUR-012", category: "실험가구·특수설비", name: "실험실 흄후드(Fume Hood)", spec: "내화학 후드·전동 새시 포함", unit: "대", material: 3800000, labor: 450000, expense: 80000 },
-      { code: "FUR-016", category: "실험가구·특수설비", name: "비상 샤워기 및 세안기", spec: "화학실험실 안전설비 세트", unit: "조", material: 780000, labor: 220000, expense: 25000 },
-      { code: "FUR-020", category: "실험가구·특수설비", name: "배기형 시약장", spec: "내부식 시약 보관함", unit: "대", material: 1150000, labor: 120000, expense: 20000 },
-      { code: "FUR-025", category: "실험가구·특수설비", name: "중량물 방진 작업대", spec: "실습장비 거치용 견고 프레임", unit: "조", material: 460000, labor: 35000, expense: 12000 },
-      { code: "FUR-030", category: "실험가구·특수설비", name: "강의실 2인용 책걸상 세트", spec: "책상·의자 2인 1조", unit: "조", material: 230000, labor: 18000, expense: 6000 }
-    ];
+    const DEFAULT_PRICE_DB = {
+      "DEM-001": { code: "DEM-001", category: "가설·철거", name: "바닥 마감재 철거 및 폐기물 반출", spec: "데코타일·장판 등", unit: "㎡", material: 0, labor: 11500, expense: 1800 },
+      "DEM-002": { code: "DEM-002", category: "가설·철거", name: "천장재 및 노후 설비 철거", spec: "텍스·배선·노후기구", unit: "㎡", material: 0, labor: 13500, expense: 2000 },
+      "ARC-010": { code: "ARC-010", category: "건축·마감", name: "바닥 마감재 시공", spec: "장판·데코타일 표준", unit: "㎡", material: 26000, labor: 14000, expense: 1500 },
+      "ARC-012": { code: "ARC-012", category: "건축·마감", name: "이중바닥(액세스플로어) 시공", spec: "전산·배선용", unit: "㎡", material: 58000, labor: 22000, expense: 3000 },
+      "ARC-015": { code: "ARC-015", category: "건축·마감", name: "내화학 바닥 마감 시공", spec: "에폭시·내산 코팅", unit: "㎡", material: 42000, labor: 19000, expense: 2500 },
+      "ARC-021": { code: "ARC-021", category: "건축·마감", name: "흡음 천장재 설치", spec: "석고텍스·경량철골", unit: "㎡", material: 19500, labor: 14500, expense: 1300 },
+      "ARC-030": { code: "ARC-030", category: "건축·마감", name: "벽면 도장 및 보수", spec: "수성페인트 2회 마감", unit: "㎡", material: 8500, labor: 9500, expense: 800 },
+      "ARC-035": { code: "ARC-035", category: "건축·마감", name: "흡음·방음 벽체 마감", spec: "실습실 차음 보완", unit: "㎡", material: 34000, labor: 18000, expense: 2000 },
+      "ELC-005": { code: "ELC-005", category: "전기·통신", name: "분전반 교체 및 간선 증설", spec: "회로 증설 및 차단기", unit: "식", material: 1750000, labor: 920000, expense: 110000 },
+      "ELC-011": { code: "ELC-011", category: "전기·통신", name: "LED 조명기구 교체", spec: "고효율 매입·직부등", unit: "등", material: 48000, labor: 22000, expense: 2500 },
+      "ELC-020": { code: "ELC-020", category: "전기·통신", name: "전원 콘센트 및 접지 보강", spec: "2구 접지 콘센트", unit: "개소", material: 24000, labor: 18000, expense: 1500 },
+      "ELC-030": { code: "ELC-030", category: "전기·통신", name: "정보통신(LAN) 배선 및 랙 정비", spec: "Cat.6A 포설·정리", unit: "식", material: 1200000, labor: 850000, expense: 90000 },
+      "MEC-005": { code: "MEC-005", category: "기계·설비", name: "배기덕트 및 환기 설비", spec: "국소배기·덕트 연장", unit: "m", material: 65000, labor: 42000, expense: 5000 },
+      "MEC-009": { code: "MEC-009", category: "기계·설비", name: "국소배기장치(흄후드) 설치", spec: "실험실 유해가스 배기", unit: "대", material: 4800000, labor: 1100000, expense: 250000 },
+      "MEC-012": { code: "MEC-012", category: "기계·설비", name: "실험실 급·배수 배관 정비", spec: "내산·내식 배관", unit: "식", material: 1450000, labor: 880000, expense: 100000 },
+      "MEC-015": { code: "MEC-015", category: "기계·설비", name: "환기·공조 보조 설비", spec: "실내 공기질 개선", unit: "식", material: 1350000, labor: 750000, expense: 85000 },
+      "FUR-001": { code: "FUR-001", category: "실험·강의가구", name: "강의용 책상 및 의자 세트", spec: "1인·2인 공용 기준", unit: "석", material: 165000, labor: 20000, expense: 8000 },
+      "FUR-003": { code: "FUR-003", category: "실험·강의가구", name: "전산 실습용 책상 및 의자", spec: "배선 정리 구조", unit: "석", material: 280000, labor: 28000, expense: 12000 },
+      "FUR-005": { code: "FUR-005", category: "실험·강의가구", name: "실험대 및 시약장", spec: "내화학·실습용 가구", unit: "식", material: 2600000, labor: 420000, expense: 90000 }
+    };
 
     // =========================================================================
     // 2. 애플리케이션 상태
     // =========================================================================
-    let roomsData = loadJson(STORAGE_KEYS.ROOMS, DEFAULT_ROOMS);
-    let historyData = loadJson(STORAGE_KEYS.HISTORY, DEFAULT_HISTORY);
-    let priceDbData = loadJson(STORAGE_KEYS.PRICE_DB, DEFAULT_PRICE_DB);
-    let costRates = loadJson(STORAGE_KEYS.RATES, { ...DEFAULT_COST_RATES });
-    let geminiApiKey = localStorage.getItem(STORAGE_KEYS.API_KEY) || "";
-
+    let roomsDb = [];
+    let priceDb = {};
+    let costRates = { ...DEFAULT_COST_RATES };
+    let geminiApiKey = "";
     let boqItems = [];
-    let activeCategoryFilter = "전체";
-    let uploadedImagesBase64 = [];
-    let lastEstimationSummary = "";
 
     // =========================================================================
-    // 3. 유틸리티 및 저장 함수
+    // 3. 유틸리티 및 스토리지
     // =========================================================================
-    function loadJson(key, fallback) {
-      try {
-        const raw = localStorage.getItem(key);
-        if (!raw) return structuredClone(fallback);
-        const parsed = JSON.parse(raw);
-        return Array.isArray(fallback)
-          ? (Array.isArray(parsed) && parsed.length > 0 ? parsed : structuredClone(fallback))
-          : { ...fallback, ...parsed };
-      } catch (e) {
-        return structuredClone(fallback);
-      }
-    }
-
-    function saveJson(key, value) {
-      try {
-        localStorage.setItem(key, JSON.stringify(value));
-      } catch (e) {
-        console.warn("로컬 저장 오류:", e);
-      }
-    }
-
-    function formatWon(num) {
-      const val = Number.isFinite(num) ? Math.round(num) : 0;
-      return `${val.toLocaleString("ko-KR")} 원`;
-    }
-
-    function formatNum(num) {
-      const val = Number.isFinite(num) ? num : 0;
-      return val.toLocaleString("ko-KR", { maximumFractionDigits: 1 });
+    function formatWon(amount) {
+      const n = Math.round(Number(amount) || 0);
+      return `${n.toLocaleString("ko-KR")}원`;
     }
 
     function showToast(message, type = "info") {
       const container = document.getElementById("toast-container");
+      if (!container) return;
       const colorMap = {
-        info: "bg-blue-50 text-blue-900 border-blue-200",
-        success: "bg-emerald-50 text-emerald-900 border-emerald-200",
-        warn: "bg-amber-50 text-amber-900 border-amber-200",
-        error: "bg-rose-50 text-rose-900 border-rose-200"
+        info: "bg-slate-800 text-white border-slate-700",
+        success: "bg-emerald-700 text-white border-emerald-600",
+        error: "bg-rose-700 text-white border-rose-600"
       };
       const el = document.createElement("div");
-      el.className = `border rounded-xl px-4 py-2.5 text-xs font-medium flex items-center justify-between gap-3 mb-2 ${colorMap[type] || colorMap.info}`;
-      el.innerHTML = `<span>${message}</span><button type="button" onclick="this.parentElement.remove()" class="font-bold opacity-60 hover:opacity-100 cursor-pointer">✕</button>`;
-      container.innerHTML = "";
+      el.className = `px-4 py-2.5 rounded-lg border shadow-lg text-xs font-medium pointer-events-auto ${colorMap[type] || colorMap.info}`;
+      el.textContent = message;
       container.appendChild(el);
       setTimeout(() => {
-        if (el.parentElement) el.remove();
-      }, 4500);
+        el.remove();
+      }, 3200);
     }
 
     function normalizeLabType(raw) {
@@ -888,291 +595,429 @@
       if (LAB_TYPES.includes(s)) return s;
       if (s.includes("전산") || s.includes("컴퓨터") || s.includes("SW") || s.includes("정보")) return "전산실습실";
       if (s.includes("화학") || s.includes("생명") || s.includes("실험")) return "화학실습실";
-      if (s.includes("강의")) return "일반강의실";
-      return "일반실습실";
+      if (s.includes("실습") || s.includes("공작") || s.includes("기계")) return "일반실습실";
+      return "일반강의실";
     }
 
-    function getImprovementLevelMultiplier(level) {
-      return LEVEL_MULTIPLIERS[level] ?? 1.3;
+    function getLevelFactor(level) {
+      return IMPROVEMENT_LEVEL_FACTORS[level] || 1.3;
     }
 
-    function getDbItemByCode(code) {
-      return priceDbData.find(d => d.code === code) || null;
+    function loadStoredData() {
+      try {
+        const savedRooms = localStorage.getItem(STORAGE_KEYS.ROOMS);
+        roomsDb = savedRooms ? JSON.parse(savedRooms) : [...DEFAULT_ROOMS];
+        if (!Array.isArray(roomsDb) || roomsDb.length === 0) {
+          roomsDb = [...DEFAULT_ROOMS];
+        }
+      } catch (e) {
+        roomsDb = [...DEFAULT_ROOMS];
+      }
+
+      try {
+        const savedPrice = localStorage.getItem(STORAGE_KEYS.PRICE_DB);
+        priceDb = savedPrice ? JSON.parse(savedPrice) : { ...DEFAULT_PRICE_DB };
+        if (!priceDb || typeof priceDb !== "object" || Object.keys(priceDb).length === 0) {
+          priceDb = { ...DEFAULT_PRICE_DB };
+        }
+      } catch (e) {
+        priceDb = { ...DEFAULT_PRICE_DB };
+      }
+
+      try {
+        const savedRates = localStorage.getItem(STORAGE_KEYS.RATES);
+        costRates = savedRates ? { ...DEFAULT_COST_RATES, ...JSON.parse(savedRates) } : { ...DEFAULT_COST_RATES };
+      } catch (e) {
+        costRates = { ...DEFAULT_COST_RATES };
+      }
+
+      try {
+        geminiApiKey = localStorage.getItem(STORAGE_KEYS.API_KEY) || "";
+      } catch (e) {
+        geminiApiKey = "";
+      }
     }
 
-    function getSelectedScopes() {
-      return Array.from(document.querySelectorAll('input[name="scope"]:checked')).map(cb => cb.value);
+    function saveRoomsDb() {
+      try {
+        localStorage.setItem(STORAGE_KEYS.ROOMS, JSON.stringify(roomsDb));
+      } catch (e) {
+        // 저장 공간 제한 시 무시
+      }
+    }
+
+    function savePriceDb() {
+      try {
+        localStorage.setItem(STORAGE_KEYS.PRICE_DB, JSON.stringify(priceDb));
+      } catch (e) {
+        // 저장 공간 제한 시 무시
+      }
+    }
+
+    function saveRates() {
+      try {
+        localStorage.setItem(STORAGE_KEYS.RATES, JSON.stringify(costRates));
+      } catch (e) {
+        // 저장 공간 제한 시 무시
+      }
     }
 
     // =========================================================================
     // 4. 건물·호실 선택 및 자동 면적 계산
     // =========================================================================
-    function initRoomSelectors() {
-      const buildings = [...new Set(roomsData.map(r => r.building))];
-      const buildingSelect = document.getElementById("building-select");
-      const currentBuilding = buildingSelect.value;
-
-      buildingSelect.innerHTML = buildings
+    function populateBuildingSelect() {
+      const buildings = [...new Set(roomsDb.map(r => r.building).filter(Boolean))];
+      const select = document.getElementById("building-select");
+      const current = select.value;
+      select.innerHTML = buildings
         .map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`)
         .join("");
 
-      if (buildings.includes(currentBuilding)) {
-        buildingSelect.value = currentBuilding;
+      if (buildings.includes(current)) {
+        select.value = current;
+      } else if (buildings.length > 0) {
+        select.value = buildings[0];
       }
-
-      document.getElementById("room-db-count").textContent = `등록 ${roomsData.length}실`;
-      populateRoomsForSelectedBuilding(true);
     }
 
-    function onBuildingChange() {
-      populateRoomsForSelectedBuilding(true);
-    }
-
-    function toggleMultiRoomMode() {
-      const isMulti = document.getElementById("multi-room-mode").checked;
-      document.getElementById("single-room-wrapper").classList.toggle("hidden", isMulti);
-      document.getElementById("multi-room-wrapper").classList.toggle("hidden", !isMulti);
-      if (isMulti) {
-        document.getElementById("single-room-wrapper").classList.add("hidden");
-        document.getElementById("multi-room-wrapper").classList.remove("hidden");
-      } else {
-        document.getElementById("single-room-wrapper").classList.remove("hidden");
-        document.getElementById("multi-room-wrapper").classList.add("hidden");
-      }
-      applyRoomSelectionToForm(true);
-    }
-
-    function populateRoomsForSelectedBuilding(applyToForm = false) {
+    function getRoomsInSelectedBuilding() {
       const building = document.getElementById("building-select").value;
-      const bRooms = roomsData.filter(r => r.building === building);
+      return roomsDb.filter(r => r.building === building);
+    }
 
-      const roomSelect = document.getElementById("room-select");
-      roomSelect.innerHTML = bRooms
-        .map(r => `<option value="${escapeHtml(r.id)}">${escapeHtml(r.roomNo)} · ${escapeHtml(r.labType)} (${r.area}㎡)</option>`)
+    function populateRoomControls() {
+      const buildingRooms = getRoomsInSelectedBuilding();
+      const singleSelect = document.getElementById("single-room-select");
+      const checkboxContainer = document.getElementById("multi-room-checkboxes");
+
+      singleSelect.innerHTML = buildingRooms
+        .map(r => `<option value="${escapeHtml(r.id)}">${escapeHtml(r.roomNo)} · ${escapeHtml(normalizeLabType(r.labType))} (${Number(r.area || 0).toFixed(1)}㎡)</option>`)
         .join("");
 
-      const multiList = document.getElementById("multi-room-list");
-      multiList.innerHTML = bRooms
+      checkboxContainer.innerHTML = buildingRooms
         .map((r, idx) => `
-          <label class="flex items-center justify-between px-3 py-2 hover:bg-white cursor-pointer text-xs">
-            <span class="flex items-center gap-2">
-              <input type="checkbox" name="multi-room-cb" value="${escapeHtml(r.id)}" ${idx === 0 ? "checked" : ""} onchange="applyRoomSelectionToForm(true)" class="rounded border-slate-300 text-blue-600" />
-              <span class="font-semibold text-slate-800">${escapeHtml(r.roomNo)}</span>
-              <span class="text-slate-500">(${escapeHtml(r.labType)})</span>
+          <label class="flex items-center justify-between gap-2 px-2 py-1.5 rounded bg-white border border-slate-200 cursor-pointer hover:bg-blue-50/40">
+            <span class="flex items-center gap-2 min-w-0">
+              <input
+                type="checkbox"
+                value="${escapeHtml(r.id)}"
+                ${idx === 0 ? "checked" : ""}
+                onchange="onRoomSelectionChange(true)"
+                class="multi-room-cb rounded text-blue-600"
+              />
+              <span class="font-medium text-slate-800 truncate">${escapeHtml(r.roomNo)}</span>
+              <span class="text-[11px] text-slate-500 truncate">${escapeHtml(normalizeLabType(r.labType))}</span>
             </span>
-            <span class="font-semibold text-slate-700 tabular-nums">${r.area}㎡ · ${r.capacity}명</span>
+            <span class="text-xs font-semibold text-blue-800 tabular-nums shrink-0">${Number(r.area || 0).toFixed(1)}㎡</span>
           </label>
         `)
         .join("");
-
-      if (applyToForm) {
-        applyRoomSelectionToForm(true);
-      }
     }
 
-    function selectAllBuildingRooms(checked) {
-      document.querySelectorAll('input[name="multi-room-cb"]').forEach(cb => {
-        cb.checked = checked;
+    function onBuildingChange() {
+      populateRoomControls();
+      onRoomSelectionChange(true);
+    }
+
+    function onMultiRoomToggle() {
+      const isMulti = document.getElementById("multi-room-toggle").checked;
+      document.getElementById("single-room-wrapper").classList.toggle("hidden", isMulti);
+      document.getElementById("multi-room-wrapper").classList.toggle("hidden", !isMulti);
+      onRoomSelectionChange(true);
+    }
+
+    function selectAllRoomsInBuilding() {
+      document.querySelectorAll(".multi-room-cb").forEach(cb => {
+        cb.checked = true;
       });
-      applyRoomSelectionToForm(true);
+      onRoomSelectionChange(true);
     }
 
-    function onSingleRoomChange() {
-      applyRoomSelectionToForm(true);
-    }
+    function getSelectedRooms() {
+      const buildingRooms = getRoomsInSelectedBuilding();
+      if (buildingRooms.length === 0) return [];
 
-    function applyRoomSelectionToForm(autoEstimate = false) {
-      const isMulti = document.getElementById("multi-room-mode").checked;
-      const building = document.getElementById("building-select").value;
-
-      let selectedRooms = [];
-      if (isMulti) {
-        const checkedIds = Array.from(document.querySelectorAll('input[name="multi-room-cb"]:checked')).map(cb => cb.value);
-        selectedRooms = roomsData.filter(r => checkedIds.includes(r.id));
-        if (selectedRooms.length === 0) {
-          const firstInBuilding = roomsData.find(r => r.building === building);
-          if (firstInBuilding) selectedRooms = [firstInBuilding];
-        }
-      } else {
-        const roomId = document.getElementById("room-select").value;
-        const found = roomsData.find(r => r.id === roomId) || roomsData.find(r => r.building === building);
-        if (found) selectedRooms = [found];
+      const isMulti = document.getElementById("multi-room-toggle").checked;
+      if (!isMulti) {
+        const selectedId = document.getElementById("single-room-select").value;
+        const found = buildingRooms.find(r => r.id === selectedId);
+        return [found || buildingRooms[0]];
       }
 
+      const checkedIds = [...document.querySelectorAll(".multi-room-cb:checked")].map(cb => cb.value);
+      const matched = buildingRooms.filter(r => checkedIds.includes(r.id));
+      return matched.length > 0 ? matched : [buildingRooms[0]];
+    }
+
+    function onRoomSelectionChange(autoEstimate = false) {
+      const selectedRooms = getSelectedRooms();
       if (selectedRooms.length === 0) return;
 
-      const totalArea = Math.round(selectedRooms.reduce((acc, r) => acc + (Number(r.area) || 0), 0) * 10) / 10;
-      const totalCapacity = selectedRooms.reduce((acc, r) => acc + (Number(r.capacity) || 0), 0);
+      const building = document.getElementById("building-select").value;
+      const totalArea = Math.round(selectedRooms.reduce((sum, r) => sum + (Number(r.area) || 0), 0) * 10) / 10;
+      const totalCapacity = selectedRooms.reduce((sum, r) => sum + (Number(r.capacity) || 0), 0);
+      const maxCeiling = Math.max(...selectedRooms.map(r => Number(r.ceilingHeight) || 2.8));
       const primaryType = normalizeLabType(selectedRooms[0].labType);
 
-      document.getElementById("lab-type").value = primaryType;
       document.getElementById("lab-area").value = totalArea.toFixed(1);
-      document.getElementById("lab-capacity").value = totalCapacity || 20;
+      document.getElementById("lab-type").value = primaryType;
+      document.getElementById("lab-capacity").value = totalCapacity > 0 ? totalCapacity : 30;
+      document.getElementById("lab-ceiling-height").value = Number.isFinite(maxCeiling) && maxCeiling > 0 ? maxCeiling.toFixed(1) : "2.8";
 
       const roomLabel = selectedRooms.length > 1
-        ? `${building} ${selectedRooms.map(r => r.roomNo).join(", ")} (${selectedRooms.length}개실)`
+        ? `${building} ${selectedRooms.map(r => r.roomNo).join(", ")}`
         : `${building} ${selectedRooms[0].roomNo}`;
 
       document.getElementById("calc-room-badge").textContent = roomLabel;
       document.getElementById("project-title").value = `${roomLabel} ${primaryType} 환경개선 공사`;
 
-      syncAreaDisplays();
+      syncConditionDisplays();
 
       if (autoEstimate) {
         runRuleEstimation(false);
       }
     }
 
-    function syncAreaDisplays() {
+    function syncConditionDisplays() {
       const area = Math.max(0, parseFloat(document.getElementById("lab-area").value) || 0);
       const capacity = Math.max(0, parseInt(document.getElementById("lab-capacity").value, 10) || 0);
-      const labType = document.getElementById("lab-type").value;
+      const ceiling = Math.max(1.5, parseFloat(document.getElementById("lab-ceiling-height").value) || 2.8);
+      const labType = normalizeLabType(document.getElementById("lab-type").value);
       const pyeong = (area * 0.3025).toFixed(1);
 
       document.getElementById("calc-area-display").textContent = area.toFixed(1);
       document.getElementById("calc-pyeong-display").textContent = `약 ${pyeong}평`;
       document.getElementById("calc-type-display").textContent = labType;
       document.getElementById("calc-capacity-display").textContent = capacity;
+      document.getElementById("calc-ceiling-display").textContent = ceiling.toFixed(1);
 
       recalculateAll();
     }
 
-    function onLabTypeManualChange() {
-      syncAreaDisplays();
+    function selectImprovementLevel(level) {
+      document.getElementById("improvement-level").value = level;
+      document.querySelectorAll(".level-btn").forEach(btn => {
+        const active = btn.dataset.level === level;
+        btn.classList.toggle("border-blue-600", active);
+        btn.classList.toggle("bg-blue-600", active);
+        btn.classList.toggle("text-white", active);
+        btn.classList.toggle("shadow-sm", active);
+        btn.classList.toggle("border-slate-300", !active);
+        btn.classList.toggle("bg-white", !active);
+        btn.classList.toggle("text-slate-700", !active);
+      });
       runRuleEstimation(false);
     }
 
-    // =========================================================================
-    // 5. 주요 공사내용 및 환경개선 수준(최대 1.5 / 중간 1.3 / 최소 1.0)
-    // =========================================================================
     function onMajorWorkTypeChange() {
-      const majorWorkType = document.getElementById("major-work-type").value;
-      const scopeCheckboxes = Array.from(document.querySelectorAll('input[name="scope"]'));
+      const major = document.getElementById("major-work-type").value;
+      const dem = document.getElementById("scope-demolition");
+      const arc = document.getElementById("scope-architectural");
+      const elc = document.getElementById("scope-electrical");
+      const mec = document.getElementById("scope-mechanical");
+      const fur = document.getElementById("scope-furniture");
 
-      if (majorWorkType === "벽, 천장, 바닥 등 부분적 환경개선") {
-        const active = ["가설·철거", "건축·마감"];
-        scopeCheckboxes.forEach(cb => { cb.checked = active.includes(cb.value); });
-      } else if (majorWorkType === "전기, 통신설비 환경개선") {
-        const active = ["가설·철거", "전기·통신"];
-        scopeCheckboxes.forEach(cb => { cb.checked = active.includes(cb.value); });
-      } else {
-        scopeCheckboxes.forEach(cb => { cb.checked = true; });
+      if (major === "전체적인 환경개선") {
+        dem.checked = true;
+        arc.checked = true;
+        elc.checked = true;
+        mec.checked = true;
+        fur.checked = true;
+      } else if (major === "벽, 천장, 바닥 등 부분적 환경개선") {
+        dem.checked = true;
+        arc.checked = true;
+        elc.checked = false;
+        mec.checked = false;
+        fur.checked = false;
+      } else if (major === "전기, 통신설비 환경개선") {
+        dem.checked = false;
+        arc.checked = false;
+        elc.checked = true;
+        mec.checked = false;
+        fur.checked = false;
       }
 
       runRuleEstimation(false);
     }
 
-    function onImprovementLevelChange() {
-      runRuleEstimation(false);
+    // =========================================================================
+    // 5. 엑셀(.xlsx/.xls/.csv) 업로드 파싱
+    // =========================================================================
+    function handleRoomExcelUpload(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: "array" });
+          const firstSheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[firstSheetName];
+          const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+          if (!Array.isArray(rows) || rows.length === 0) {
+            showToast("엑셀 시트에 데이터가 없습니다.", "error");
+            return;
+          }
+
+          let lastBuilding = "본관";
+          const parsedRooms = [];
+
+          rows.forEach((row, index) => {
+            const keys = Object.keys(row);
+            const findVal = (candidates) => {
+              for (const k of keys) {
+                const nk = String(k).replace(/\s+/g, "").toLowerCase();
+                if (candidates.some(c => nk.includes(c))) {
+                  return row[k];
+                }
+              }
+              return "";
+            };
+
+            const bRaw = String(findVal(["건물", "building", "동명"]) || "").trim();
+            const rRaw = String(findVal(["호실", "room", "실명", "강의실"]) || "").trim();
+            const tRaw = String(findVal(["유형", "분류", "type", "용도"]) || "").trim();
+            const aRaw = String(findVal(["면적", "area", "㎡", "평"]) || "").replace(/[^\d.]/g, "");
+            const cRaw = String(findVal(["수용", "인원", "capacity", "정원"]) || "").replace(/[^\d]/g, "");
+            const hRaw = String(findVal(["층고", "높이", "ceiling", "height"]) || "").replace(/[^\d.]/g, "");
+
+            if (bRaw) lastBuilding = bRaw;
+            const areaVal = parseFloat(aRaw);
+            if (!rRaw && !Number.isFinite(areaVal)) return;
+
+            const roomNo = rRaw || `${index + 101}호`;
+            const area = Number.isFinite(areaVal) && areaVal > 0 ? Math.round(areaVal * 10) / 10 : 80.0;
+            const capacity = parseInt(cRaw, 10) > 0 ? parseInt(cRaw, 10) : 30;
+            const ceilingHeight = parseFloat(hRaw) > 0 ? Math.round(parseFloat(hRaw) * 10) / 10 : 2.8;
+
+            parsedRooms.push({
+              id: `rm-xl-${Date.now()}-${index}`,
+              building: lastBuilding,
+              roomNo,
+              labType: normalizeLabType(tRaw),
+              area,
+              capacity,
+              ceilingHeight
+            });
+          });
+
+          if (parsedRooms.length === 0) {
+            showToast("인식 가능한 호실·면적 행을 찾지 못했습니다.", "error");
+            return;
+          }
+
+          roomsDb = parsedRooms;
+          saveRoomsDb();
+          populateBuildingSelect();
+          populateRoomControls();
+          onRoomSelectionChange(true);
+          showToast(`호실 ${parsedRooms.length}건이 반영되었습니다.`, "success");
+        } catch (err) {
+          showToast("엑셀 파일을 읽는 중 오류가 발생했습니다.", "error");
+        } finally {
+          event.target.value = "";
+        }
+      };
+      reader.readAsArrayBuffer(file);
     }
 
     // =========================================================================
-    // 6. 물량 산출 엔진 (표준 규칙 산출 + Gemini 멀티모달 AI 산출)
+    // 6. 물량 산출 로직 (표준 규칙 + Gemini API 선택 지원)
     // =========================================================================
-    function buildRuleBasedBoq(labType, area, capacity, scopes, requirements, majorWorkType, improvementLevel) {
+    function buildRuleBoq(labType, area, capacity, ceilingHeight, majorWorkType, improvementLevel) {
       const items = [];
-      const mult = getImprovementLevelMultiplier(improvementLevel);
-      const reqText = String(requirements || "").toLowerCase();
-      const areaWithLoss = Math.round(area * 1.05 * 10) / 10;
+      const factor = getLevelFactor(improvementLevel);
+      const heightRatio = Math.max(0.85, (Number(ceilingHeight) || 2.8) / 2.8);
+      const areaRounded = Math.round(area * 10) / 10;
+      const areaLoss = Math.round(area * 1.05 * 10) / 10;
 
-      const pushItem = (code, rawQty, basis, applyLevelMult = true) => {
-        const db = getDbItemByCode(code);
-        if (!db || !scopes.includes(db.category)) return;
-        const scaled = applyLevelMult ? rawQty * mult : rawQty;
-        const isIntegerUnit = ["식", "대", "조", "등", "개소", "회선", "ton"].includes(db.unit);
-        const qty = isIntegerUnit
-          ? Math.max(1, Math.round(scaled))
-          : Math.max(0.1, Math.round(scaled * 10) / 10);
-        const cleanBasis = String(basis || "").replace(/할증\s*\d+(\.\d+)?%?\s*포함/g, "반영");
+      const scopeDem = document.getElementById("scope-demolition").checked;
+      const scopeArc = document.getElementById("scope-architectural").checked;
+      const scopeElc = document.getElementById("scope-electrical").checked;
+      const scopeMec = document.getElementById("scope-mechanical").checked;
+      const scopeFur = document.getElementById("scope-furniture").checked;
+
+      const addItem = (code, baseQty, applyFactor = true) => {
+        const dbItem = priceDb[code];
+        if (!dbItem) return;
+        const rawQty = applyFactor ? baseQty * factor : baseQty;
+        const qty = dbItem.unit === "식" || dbItem.unit === "대" || dbItem.unit === "등" || dbItem.unit === "개소" || dbItem.unit === "석"
+          ? Math.max(1, Math.round(rawQty))
+          : Math.max(0.1, Math.round(rawQty * 10) / 10);
+
         items.push({
-          id: `boq-${Date.now()}-${code}-${items.length}`,
-          item_code: code,
+          uid: `${code}-${items.length}-${Math.random().toString(36).slice(2, 6)}`,
+          code: dbItem.code,
+          category: dbItem.category,
+          name: dbItem.name,
+          spec: dbItem.spec,
+          unit: dbItem.unit,
           quantity: qty,
-          basis: cleanBasis
+          material: Number(dbItem.material) || 0,
+          labor: Number(dbItem.labor) || 0,
+          expense: Number(dbItem.expense) || 0
         });
       };
 
-      // 가설·철거
-      pushItem("DEM-001", area, `대상 면적 ${area.toFixed(1)}㎡ 기준 기존 바닥·천장 철거`);
-      pushItem("DEM-003", Math.max(2, area / 22), `철거 발생 폐기물 위탁처리 추정(${area.toFixed(1)}㎡ 기준)`);
-
-      if (majorWorkType === "전체적인 환경개선" || labType === "화학실습실" || labType === "일반실습실") {
-        pushItem("DEM-004", Math.sqrt(area) * 4, `인접 구역 분진·소음 보양`, false);
-      }
-      if (majorWorkType === "전체적인 환경개선" && (labType === "화학실습실" || labType === "전산실습실" || labType === "일반실습실")) {
-        pushItem("DEM-002", 1, `기존 고정 설비·가구 철거 및 반출 1식`, false);
-      }
-
-      // 건축·마감
-      if (majorWorkType === "전체적인 환경개선" || majorWorkType === "벽, 천장, 바닥 등 부분적 환경개선") {
-        if (labType === "전산실습실") {
-          pushItem("ARC-012", areaWithLoss, `전산실 이중바닥(악세스플로어) ${areaWithLoss}㎡`);
-        } else {
-          pushItem("ARC-001", areaWithLoss, `바닥 마감재 ${areaWithLoss}㎡`);
-        }
-        pushItem("ARC-021", areaWithLoss, `천장 흡음 텍스 ${areaWithLoss}㎡`);
-        pushItem("ARC-030", Math.round(area * 1.4), `벽면 도장 약 ${Math.round(area * 1.4)}㎡`);
-
-        if (labType === "일반실습실" || reqText.includes("방음") || reqText.includes("소음")) {
-          pushItem("ARC-035", Math.round(area * 0.8), `실습실 소음 저감 방음패널 약 ${Math.round(area * 0.8)}㎡`);
-          pushItem("ARC-041", 2, `방음·방화 출입문 2개소`, false);
-        } else if (majorWorkType === "전체적인 환경개선") {
-          pushItem("ARC-041", 1, `출입문 정비 1개소`, false);
+      // 1) 가설·철거
+      if (scopeDem && majorWorkType !== "전기, 통신설비 환경개선") {
+        addItem("DEM-001", areaRounded);
+        if (majorWorkType === "전체적인 환경개선" || majorWorkType === "벽, 천장, 바닥 등 부분적 환경개선") {
+          addItem("DEM-002", Math.round(areaRounded * heightRatio * 10) / 10);
         }
       }
 
-      // 전기·통신
-      if (majorWorkType === "전체적인 환경개선" || majorWorkType === "전기, 통신설비 환경개선") {
-        const ledCount = Math.max(8, Math.round(area / 5));
-        pushItem("ELC-011", ledCount, `면적 ${area.toFixed(1)}㎡ 기준 LED 조명 ${ledCount}등`);
-        const outletCount = Math.max(6, Math.round(capacity / 2));
-        pushItem("ELC-015", outletCount, `수용인원 ${capacity}명 기준 접지 콘센트 ${outletCount}개소`);
-
+      // 2) 건축·마감
+      if (scopeArc && majorWorkType !== "전기, 통신설비 환경개선") {
         if (labType === "전산실습실") {
-          pushItem("ELC-005", 1, `전산실 100A 분전반 교체 및 간선 증설`, false);
-          pushItem("ELC-020", Math.max(10, capacity), `실습석·교탁 통신 LAN 배선 ${Math.max(10, capacity)}회선`);
-        } else if (labType === "일반실습실") {
-          pushItem("ELC-008", 1, `실습장비 3상 동력(380V) 배전반 신설`, false);
-          pushItem("ELC-020", Math.max(4, Math.round(capacity / 3)), `통신 배선 ${Math.max(4, Math.round(capacity / 3))}회선`);
+          addItem("ARC-012", areaLoss);
         } else if (labType === "화학실습실") {
-          pushItem("ELC-005", 1, `실험·배기설비 부하 대응 100A 분전반 증설`, false);
+          addItem("ARC-015", areaLoss);
         } else {
-          pushItem("ELC-025", 1, `강의실 교탁·빔프로젝터·AV 배관 정비`, false);
+          addItem("ARC-010", areaLoss);
+        }
+
+        addItem("ARC-021", areaLoss);
+        addItem("ARC-030", Math.round(areaRounded * 1.35 * heightRatio * 10) / 10);
+
+        if (labType === "일반실습실" || majorWorkType === "전체적인 환경개선") {
+          addItem("ARC-035", Math.round(areaRounded * 0.6 * heightRatio * 10) / 10);
         }
       }
 
-      // 기계·설비 (전체적인 환경개선 시 반영)
-      if (majorWorkType === "전체적인 환경개선") {
-        const acUnits = Math.max(1, Math.round(area / 55));
-        pushItem("MEC-001", acUnits, `면적 ${area.toFixed(1)}㎡ 기준 시스템 냉난방기 ${acUnits}대`, false);
+      // 3) 전기·통신
+      if (scopeElc) {
+        addItem("ELC-005", 1, false);
+        const ledQty = Math.max(6, Math.round((areaRounded / 5) * heightRatio));
+        addItem("ELC-011", ledQty);
+        const outletQty = Math.max(8, Math.round(capacity * 0.6));
+        addItem("ELC-020", outletQty);
+        if (labType === "전산실습실" || majorWorkType === "전체적인 환경개선" || majorWorkType === "전기, 통신설비 환경개선") {
+          addItem("ELC-030", 1, false);
+        }
+      }
 
+      // 4) 기계·설비
+      if (scopeMec && majorWorkType === "전체적인 환경개선") {
         if (labType === "화학실습실") {
-          pushItem("MEC-005", Math.max(15, Math.round(area * 0.25)), `흄후드·시약장 연결 배기덕트`);
-          pushItem("MEC-009", 1, `유해가스 배기팬 및 활성탄 스크러버 1식`, false);
-          pushItem("MEC-012", 1, `내산성 폐수 및 급수 배관 1식`, false);
-        } else if (labType === "일반실습실") {
-          pushItem("MEC-015", 1, `집진 및 환기 설비 1식`, false);
+          addItem("MEC-005", Math.max(12, Math.round(areaRounded * 0.25 * heightRatio)));
+          addItem("MEC-009", Math.max(1, Math.round(capacity / 16)), false);
+          addItem("MEC-012", 1, false);
+        } else {
+          addItem("MEC-015", 1, false);
         }
       }
 
-      // 실험가구·특수설비 (전체적인 환경개선 시 반영)
-      if (majorWorkType === "전체적인 환경개선") {
+      // 5) 실험·강의가구
+      if (scopeFur && majorWorkType === "전체적인 환경개선") {
         if (labType === "전산실습실") {
-          const desks = Math.max(5, Math.ceil(capacity / 2));
-          pushItem("FUR-003", desks, `수용인원 ${capacity}명 기준 전산 실습 책상 ${desks}조`);
-        } else if (labType === "일반강의실") {
-          const sets = Math.max(6, Math.ceil(capacity / 2));
-          pushItem("FUR-030", sets, `수용인원 ${capacity}명 기준 2인용 책걸상 ${sets}조`);
-        } else if (labType === "일반실습실") {
-          const benches = Math.max(4, Math.ceil(capacity / 3));
-          pushItem("FUR-025", benches, `수용인원 ${capacity}명 기준 중량물 방진 작업대 ${benches}조`);
+          addItem("FUR-003", Math.max(1, capacity));
         } else if (labType === "화학실습실") {
-          const labBenchLen = Math.max(8, Math.round(capacity * 0.75));
-          const hoodCount = Math.max(1, Math.round(capacity / 12));
-          pushItem("FUR-008", labBenchLen, `내화학성 실험대 약 ${labBenchLen}m`);
-          pushItem("FUR-012", hoodCount, `화학실험용 흄후드 ${hoodCount}대`, false);
-          pushItem("FUR-016", 1, `비상 샤워기 및 세안기 1조`, false);
-          pushItem("FUR-020", Math.max(1, Math.round(capacity / 12)), `배기형 시약장`, false);
+          addItem("FUR-005", Math.max(1, Math.round(capacity / 8)), false);
+        } else {
+          addItem("FUR-001", Math.max(1, capacity));
         }
       }
 
@@ -1181,579 +1026,551 @@
 
     function runRuleEstimation(notify = true) {
       const labType = normalizeLabType(document.getElementById("lab-type").value);
-      const area = Math.max(1, parseFloat(document.getElementById("lab-area").value) || 0);
+      const area = Math.max(1, parseFloat(document.getElementById("lab-area").value) || 1);
       const capacity = Math.max(1, parseInt(document.getElementById("lab-capacity").value, 10) || 1);
+      const ceiling = Math.max(1.5, parseFloat(document.getElementById("lab-ceiling-height").value) || 2.8);
       const majorWorkType = document.getElementById("major-work-type").value;
       const improvementLevel = document.getElementById("improvement-level").value;
-      const mult = getImprovementLevelMultiplier(improvementLevel);
-      const scopes = getSelectedScopes();
-      const requirements = document.getElementById("requirements").value;
 
-      boqItems = buildRuleBasedBoq(labType, area, capacity, scopes, requirements, majorWorkType, improvementLevel);
-      lastEstimationSummary = `${labType}(${area.toFixed(1)}㎡, ${capacity}명) · 주요공사내용 [${majorWorkType}] · 환경개선 수준 [${improvementLevel}] 기준으로 총 ${boqItems.length}개 내역 항목을 산출했습니다.`;
-      document.getElementById("estimation-summary-text").textContent = lastEstimationSummary;
+      boqItems = buildRuleBoq(labType, area, capacity, ceiling, majorWorkType, improvementLevel);
+
+      document.getElementById("estimation-summary-text").textContent =
+        `${labType} (${area.toFixed(1)}㎡ · ${capacity}명 · 층고 ${ceiling.toFixed(1)}m) / ${majorWorkType} / ${improvementLevel} 수준 기준 ${boqItems.length}개 항목 산출`;
 
       recalculateAll();
       if (notify) {
-        showToast(`표준 규칙으로 ${boqItems.length}개 내역 항목이 산출되었습니다.`, "success");
+        showToast("표준 기준으로 예산이 산출되었습니다.", "success");
       }
     }
 
     async function runAiEstimation() {
-      const apiKey = (geminiApiKey || document.getElementById("gemini-api-key")?.value || "").trim();
-      const labType = normalizeLabType(document.getElementById("lab-type").value);
-      const area = Math.max(1, parseFloat(document.getElementById("lab-area").value) || 0);
-      const capacity = Math.max(1, parseInt(document.getElementById("lab-capacity").value, 10) || 1);
-      const majorWorkType = document.getElementById("major-work-type").value;
-      const improvementLevel = document.getElementById("improvement-level").value;
-      const mult = getImprovementLevelMultiplier(improvementLevel);
-      const scopes = getSelectedScopes();
-      const requirements = document.getElementById("requirements").value;
-
+      const apiKey = (geminiApiKey || "").trim();
       if (!apiKey) {
         runRuleEstimation(false);
-        showToast("API 키 미설정 상태이므로 규칙 산출 엔진으로 산출했습니다.", "info");
+        showToast("API 키 미설정 상태이므로 표준 기준 산출 결과를 적용했습니다.", "info");
         return;
       }
 
-      const btn = document.getElementById("btn-ai-estimate");
-      const origText = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = "AI 물량 분석 중...";
+      const labType = normalizeLabType(document.getElementById("lab-type").value);
+      const area = Math.max(1, parseFloat(document.getElementById("lab-area").value) || 1);
+      const capacity = Math.max(1, parseInt(document.getElementById("lab-capacity").value, 10) || 1);
+      const ceiling = Math.max(1.5, parseFloat(document.getElementById("lab-ceiling-height").value) || 2.8);
+      const majorWorkType = document.getElementById("major-work-type").value;
+      const improvementLevel = document.getElementById("improvement-level").value;
+      const reqText = document.getElementById("requirements").value || "";
+      const catalog = Object.values(priceDb).map(p => ({ code: p.code, name: p.name, unit: p.unit }));
+
+      const prompt = [
+        "대학 실습실 환경개선 공사 물량 산출 전문가로서 아래 조건에 맞는 품목 코드와 수량만 JSON 배열로 반환하세요.",
+        `조건: 유형=${labType}, 면적=${area}㎡, 수용인원=${capacity}명, 층고=${ceiling}m, 주요공사내용=${majorWorkType}, 수준=${improvementLevel}, 메모=${reqText}`,
+        `사용 가능 품목: ${JSON.stringify(catalog)}`,
+        '출력 형식: [{"code":"DEM-001","quantity":120}]'
+      ].join("\n");
 
       try {
-        const catalogForPrompt = priceDbData
-          .filter(d => scopes.includes(d.category))
-          .map(d => `${d.code}|${d.category}|${d.name}|${d.unit}`);
-
-        const prompt = `
-당신은 대한민국 대학 시설팀의 건축·설비 적산 전문가입니다.
-아래 조건에 맞는 공사 물량 내역을 JSON으로만 반환하세요.
-- 실습실 유형: ${labType}
-- 면적: ${area} ㎡
-- 수용인원: ${capacity} 명
-- 주요 공사내용: ${majorWorkType}
-- 환경개선 수준: ${improvementLevel} (내부 적용 계수 ${mult} 기준 산출, 요약문·근거·항목명에 숫자 계수나 비율 표기 금지)
-- 대상 공종: ${scopes.join(", ")}
-- 요구사항: ${requirements || "없음"}
-- 사용 가능 품목(코드|공종|품명|단위):
-${catalogForPrompt.join("\n")}
-
-반드시 아래 JSON 형식만 출력하세요:
-{"summary":"요약문","items":[{"item_code":"DEM-001","quantity":100,"basis":"근거"}]}
-`;
-
-        const parts = [{ text: prompt }];
-        for (const img of uploadedImagesBase64) {
-          const match = img.dataUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
-          if (match) {
-            parts.push({
-              inlineData: {
-                mimeType: match[1],
-                data: match[2]
-              }
-            });
-          }
-        }
-
-        const resp = await fetch(
+        showToast("AI 물량 분석을 실행 중입니다...", "info");
+        const res = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              contents: [{ parts }],
-              generationConfig: { responseMimeType: "application/json", temperature: 0.2 }
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { responseMimeType: "application/json" }
             })
           }
         );
 
-        if (!resp.ok) {
-          throw new Error(`API 응답 오류 (${resp.status})`);
+        if (!res.ok) {
+          throw new Error("API 요청 실패");
         }
 
-        const data = await resp.json();
-        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        const parsed = JSON.parse(rawText);
-
-        if (!Array.isArray(parsed.items) || parsed.items.length === 0) {
-          throw new Error("유효한 물량 항목이 반환되지 않았습니다.");
+        const data = await res.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+        const parsed = JSON.parse(text);
+        if (!Array.isArray(parsed) || parsed.length === 0) {
+          throw new Error("빈 응답");
         }
 
-        boqItems = parsed.items
-          .map((it, idx) => {
-            const db = getDbItemByCode(it.item_code);
-            if (!db || !scopes.includes(db.category)) return null;
-            const q = Math.max(0.1, Number(it.quantity) || 1);
-            const sanitizedBasis = String(it.basis || `산출 (${improvementLevel})`).replace(/\d+(\.\d+)?\s*(배|할증|%)/g, "");
-            return {
-              id: `boq-ai-${Date.now()}-${idx}`,
-              item_code: db.code,
-              quantity: Math.round(q * 10) / 10,
-              basis: sanitizedBasis.trim() || `산출 (${improvementLevel})`
-            };
-          })
-          .filter(Boolean);
+        const nextItems = [];
+        parsed.forEach((entry, idx) => {
+          const dbItem = priceDb[entry.code];
+          const qty = Number(entry.quantity);
+          if (dbItem && Number.isFinite(qty) && qty > 0) {
+            nextItems.push({
+              uid: `${dbItem.code}-ai-${idx}-${Date.now()}`,
+              code: dbItem.code,
+              category: dbItem.category,
+              name: dbItem.name,
+              spec: dbItem.spec,
+              unit: dbItem.unit,
+              quantity: Math.round(qty * 10) / 10,
+              material: Number(dbItem.material) || 0,
+              labor: Number(dbItem.labor) || 0,
+              expense: Number(dbItem.expense) || 0
+            });
+          }
+        });
 
-        if (boqItems.length === 0) {
-          throw new Error("선택된 공종에 매칭되는 AI 품목이 없습니다.");
+        if (nextItems.length === 0) {
+          throw new Error("유효 품목 없음");
         }
 
-        lastEstimationSummary = parsed.summary
-          ? `${parsed.summary} (${majorWorkType} · ${improvementLevel})`
-          : `AI가 ${labType}(${area.toFixed(1)}㎡) · [${majorWorkType}] · [${improvementLevel}] 기준으로 ${boqItems.length}개 항목을 산출했습니다.`;
-        document.getElementById("estimation-summary-text").textContent = lastEstimationSummary;
-
+        boqItems = nextItems;
+        document.getElementById("estimation-summary-text").textContent =
+          `AI 분석 반영 (${labType} · ${area.toFixed(1)}㎡ · ${capacity}명 · 층고 ${ceiling.toFixed(1)}m) · 총 ${boqItems.length}개 항목`;
         recalculateAll();
-        showToast(`AI 물량 산출 완료 (${boqItems.length}개 항목)`, "success");
+        showToast("AI 물량 분석이 완료되었습니다.", "success");
       } catch (err) {
-        console.warn("AI 산출 폴백:", err);
         runRuleEstimation(false);
-        showToast(`AI 호출 실패로 규칙 산출로 자동 전환했습니다. (${err.message})`, "warn");
-      } finally {
-        btn.disabled = false;
-        btn.textContent = origText;
+        showToast("AI 호출에 실패하여 표준 기준 산출로 전환했습니다.", "error");
       }
-    }
-
-    function handleImagePreview(event) {
-      const files = Array.from(event.target.files || []);
-      uploadedImagesBase64 = [];
-      const listEl = document.getElementById("image-preview-list");
-      listEl.innerHTML = "";
-
-      files.slice(0, 6).forEach(file => {
-        const reader = new FileReader();
-        reader.onload = e => {
-          uploadedImagesBase64.push({ name: file.name, dataUrl: e.target.result });
-          const div = document.createElement("div");
-          div.className = "relative aspect-video rounded-lg overflow-hidden border border-slate-200 bg-slate-100";
-          div.innerHTML = `<img src="${e.target.result}" alt="${escapeHtml(file.name)}" class="w-full h-full object-cover" />`;
-          listEl.appendChild(div);
-        };
-        reader.readAsDataURL(file);
-      });
     }
 
     // =========================================================================
-    // 7. 세부산출내역서 편집 및 원가계산서 연산
+    // 7. 원가계산 및 화면 렌더링
     // =========================================================================
-    function renderCategoryTabs() {
-      const cats = ["전체", "가설·철거", "건축·마감", "전기·통신", "기계·설비", "실험가구·특수설비"];
-      const tabsEl = document.getElementById("category-tabs");
-      tabsEl.innerHTML = cats
-        .map(c => {
-          const active = activeCategoryFilter === c;
-          return `<button type="button" onclick="setCategoryFilter('${c}')" class="px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer transition ${active ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}">${c}</button>`;
-        })
-        .join("");
-    }
+    function computeTotals() {
+      let directMaterial = 0;
+      let directLabor = 0;
+      let directExpense = 0;
 
-    function setCategoryFilter(cat) {
-      activeCategoryFilter = cat;
-      renderCategoryTabs();
-      renderBoqTable();
-    }
+      const enriched = boqItems.map(item => {
+        const qty = Math.max(0, Number(item.quantity) || 0);
+        const matAmt = Math.floor(qty * (Number(item.material) || 0));
+        const labAmt = Math.floor(qty * (Number(item.labor) || 0));
+        const expAmt = Math.floor(qty * (Number(item.expense) || 0));
+        const totalAmt = matAmt + labAmt + expAmt;
 
-    function addBoqRow() {
-      const firstItem = priceDbData[0];
-      if (!firstItem) return;
-      boqItems.push({
-        id: `boq-add-${Date.now()}`,
-        item_code: firstItem.code,
-        quantity: 1,
-        basis: "담당자 수동 추가 항목"
-      });
-      recalculateAll();
-    }
+        directMaterial += matAmt;
+        directLabor += labAmt;
+        directExpense += expAmt;
 
-    function removeBoqRow(id) {
-      boqItems = boqItems.filter(item => item.id !== id);
-      recalculateAll();
-    }
-
-    function updateBoqQuantity(id, val) {
-      const target = boqItems.find(item => item.id === id);
-      if (!target) return;
-      const num = parseFloat(val);
-      target.quantity = Number.isFinite(num) && num >= 0 ? num : 0;
-      recalculateAll();
-    }
-
-    function updateBoqItemCode(id, newCode) {
-      const target = boqItems.find(item => item.id === id);
-      if (!target) return;
-      target.item_code = newCode;
-      recalculateAll();
-    }
-
-    function renderBoqTable() {
-      const tbody = document.getElementById("boq-table-body");
-      const filtered = boqItems.filter(row => {
-        const db = getDbItemByCode(row.item_code);
-        const cat = db ? db.category : "기타";
-        return activeCategoryFilter === "전체" || cat === activeCategoryFilter;
+        return { ...item, quantity: qty, matAmt, labAmt, expAmt, totalAmt };
       });
 
-      if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">표시할 내역 항목이 없습니다.</td></tr>`;
-        return;
-      }
+      const indirectLabor = Math.floor(directLabor * ((Number(costRates.indirect_labor) || 0) / 100));
+      const totalLabor = directLabor + indirectLabor;
 
-      tbody.innerHTML = filtered
-        .map(row => {
-          const db = getDbItemByCode(row.item_code) || {
-            code: row.item_code,
-            category: "미분류",
-            name: "미등록 품목",
-            spec: "-",
-            unit: "식",
-            material: 0,
-            labor: 0,
-            expense: 0
-          };
-          const unitTotal = db.material + db.labor + db.expense;
-          const rowAmount = Math.floor(row.quantity * unitTotal);
+      const otherExpense = Math.floor((directMaterial + totalLabor) * ((Number(costRates.other_expense) || 0) / 100));
+      const totalExpense = directExpense + otherExpense;
 
-          const optionsHtml = priceDbData
-            .map(d => `<option value="${escapeHtml(d.code)}" ${d.code === row.item_code ? "selected" : ""}>[${escapeHtml(d.code)}] ${escapeHtml(d.name)}</option>`)
-            .join("");
+      const netCost = directMaterial + totalLabor + totalExpense;
+      const generalAdmin = Math.floor(netCost * ((Number(costRates.general_admin) || 0) / 100));
+      const profit = Math.floor((totalLabor + totalExpense + generalAdmin) * ((Number(costRates.profit) || 0) / 100));
 
-          return `
-            <tr class="hover:bg-slate-50/70">
-              <td class="py-2 px-2 whitespace-nowrap text-slate-600 font-medium">${escapeHtml(db.category)}</td>
-              <td class="py-2 px-2">
-                <select onchange="updateBoqItemCode('${row.id}', this.value)" class="w-full rounded border border-slate-200 bg-white px-1.5 py-1 text-xs font-semibold text-slate-800">
-                  ${optionsHtml}
-                </select>
-                <div class="text-[10px] text-slate-400 mt-0.5">${escapeHtml(db.spec)} · ${escapeHtml(row.basis || "")}</div>
-              </td>
-              <td class="py-2 px-2 text-center whitespace-nowrap text-slate-600">${escapeHtml(db.unit)}</td>
-              <td class="py-2 px-2 text-right whitespace-nowrap">
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value="${row.quantity}"
-                  onchange="updateBoqQuantity('${row.id}', this.value)"
-                  class="w-20 rounded border border-slate-300 bg-white px-1.5 py-1 text-right tabular-nums text-xs"
-                />
-              </td>
-              <td class="py-2 px-2 text-right whitespace-nowrap tabular-nums text-slate-600">${unitTotal.toLocaleString("ko-KR")}</td>
-              <td class="py-2 px-2 text-right whitespace-nowrap tabular-nums font-semibold text-slate-900">${rowAmount.toLocaleString("ko-KR")}</td>
-              <td class="py-2 px-2 text-center no-print">
-                <button type="button" onclick="removeBoqRow('${row.id}')" class="text-rose-500 hover:text-rose-700 font-bold px-1.5 cursor-pointer">✕</button>
-              </td>
-            </tr>
-          `;
-        })
-        .join("");
-    }
-
-    function computeCostStatement() {
-      let directMat = 0;
-      let directLab = 0;
-      let directExp = 0;
-
-      for (const row of boqItems) {
-        const db = getDbItemByCode(row.item_code);
-        if (!db) continue;
-        const q = Number(row.quantity) || 0;
-        directMat += Math.floor(q * db.material);
-        directLab += Math.floor(q * db.labor);
-        directExp += Math.floor(q * db.expense);
-      }
-
-      const rIndLab = (costRates.indirect_labor || 0) / 100;
-      const rOtherExp = (costRates.other_expense || 0) / 100;
-      const rGenAdm = (costRates.general_admin || 0) / 100;
-      const rProfit = (costRates.profit || 0) / 100;
-      const rVat = (costRates.vat || 0) / 100;
-      const rCont = (costRates.contingency || 0) / 100;
-
-      const indirectLab = Math.floor(directLab * rIndLab);
-      const totalLab = directLab + indirectLab;
-
-      const otherExp = Math.floor((directMat + totalLab) * rOtherExp);
-      const totalExp = directExp + otherExp;
-
-      const netCost = directMat + totalLab + totalExp;
-      const genAdm = Math.floor(netCost * rGenAdm);
-      const profit = Math.floor((totalLab + totalExp + genAdm) * rProfit);
-
-      const supplyPrice = netCost + genAdm + profit;
-      const vat = Math.floor(supplyPrice * rVat);
-      const constructionTotal = supplyPrice + vat;
-      const contingency = Math.floor(constructionTotal * rCont);
-      const grandTotal = Math.floor((constructionTotal + contingency) / 1000) * 1000;
+      const supplyPrice = netCost + generalAdmin + profit;
+      const vat = Math.floor(supplyPrice * ((Number(costRates.vat) || 0) / 100));
+      const subtotal = supplyPrice + vat;
+      const contingency = Math.floor(subtotal * ((Number(costRates.contingency) || 0) / 100));
+      const grandTotal = Math.floor((subtotal + contingency) / 1000) * 1000;
 
       return {
-        directMat,
-        directLab,
-        indirectLab,
-        directExp,
-        otherExp,
+        enriched,
+        directMaterial,
+        directLabor,
+        indirectLabor,
+        directExpense,
+        otherExpense,
         netCost,
-        genAdm,
+        generalAdmin,
         profit,
         supplyPrice,
         vat,
-        constructionTotal,
         contingency,
         grandTotal
       };
     }
 
-    function renderCostStatement(cs) {
-      const rows = [
-        { label: "Ⅰ. 직접재료비", basis: "품목별 수량 × 재료단가 합계", amt: cs.directMat, bold: false },
-        { label: "Ⅱ. 직접노무비", basis: "품목별 수량 × 노무단가 합계", amt: cs.directLab, bold: false },
-        { label: "Ⅲ. 간접노무비", basis: `직접노무비 × ${costRates.indirect_labor}%`, amt: cs.indirectLab, bold: false },
-        { label: "Ⅳ. 직접경비", basis: "품목별 수량 × 경비단가 합계", amt: cs.directExp, bold: false },
-        { label: "Ⅴ. 기타경비", basis: `(직접재료비 + 노무비계) × ${costRates.other_expense}%`, amt: cs.otherExp, bold: false },
-        { label: "순공사원가", basis: "재료비 + 노무비계 + 경비계", amt: cs.netCost, bold: true, highlight: "bg-slate-50" },
-        { label: "Ⅵ. 일반관리비", basis: `순공사원가 × ${costRates.general_admin}%`, amt: cs.genAdm, bold: false },
-        { label: "Ⅶ. 이윤", basis: `(노무비계 + 경비계 + 일반관리비) × ${costRates.profit}%`, amt: cs.profit, bold: false },
-        { label: "공급가액", basis: "순공사원가 + 일반관리비 + 이윤", amt: cs.supplyPrice, bold: true, highlight: "bg-slate-50" },
-        { label: "Ⅷ. 부가가치세", basis: `공급가액 × ${costRates.vat}%`, amt: cs.vat, bold: false },
-        { label: "Ⅸ. 예비비", basis: `공사비 합계 × ${costRates.contingency}%`, amt: cs.contingency, bold: false },
-        { label: "최종 추정 사업비", basis: "천원 단위 절사 적용", amt: cs.grandTotal, bold: true, highlight: "bg-blue-50 text-blue-950" }
-      ];
-
-      document.getElementById("cost-statement-body").innerHTML = rows
-        .map(r => `
-          <tr class="${r.highlight || ""}">
-            <td class="py-2 px-3 ${r.bold ? "font-bold" : "text-slate-700"}">${r.label}</td>
-            <td class="py-2 px-3 text-slate-500">${r.basis}</td>
-            <td class="py-2 px-3 text-right ${r.bold ? "font-bold text-sm" : "font-medium"}">${r.amt.toLocaleString("ko-KR")}</td>
-          </tr>
-        `)
-        .join("");
-    }
-
-    function renderBenchmark(cs) {
-      const area = Math.max(1, parseFloat(document.getElementById("lab-area").value) || 1);
-      const labType = document.getElementById("lab-type").value;
-      const currentUnitCost = Math.round(cs.grandTotal / area);
-
-      const sameTypeList = historyData.filter(h => normalizeLabType(h.labType) === labType && h.area > 0);
-      const targetList = sameTypeList.length > 0 ? sameTypeList : historyData.filter(h => h.area > 0);
-
-      if (targetList.length === 0) {
-        document.getElementById("benchmark-content").textContent = "등록된 과거 공사 실적이 없습니다.";
-        return;
-      }
-
-      const avgUnit = Math.round(
-        targetList.reduce((acc, h) => acc + (h.totalCost / h.area), 0) / targetList.length
-      );
-      const diffRatio = avgUnit > 0 ? (((currentUnitCost - avgUnit) / avgUnit) * 100).toFixed(1) : "0.0";
-      const sign = Number(diffRatio) > 0 ? `+${diffRatio}%` : `${diffRatio}%`;
-      const scopeText = sameTypeList.length > 0 ? `${labType} ${sameTypeList.length}건` : `전체 실적 ${targetList.length}건`;
-
-      document.getElementById("benchmark-content").innerHTML = `
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <span>현재 ㎡당 단가: <strong class="text-slate-900">${currentUnitCost.toLocaleString("ko-KR")} 원/㎡</strong></span>
-          <span>과거(${scopeText}) 평균: <strong class="text-slate-900">${avgUnit.toLocaleString("ko-KR")} 원/㎡</strong></span>
-          <span>차이율: <strong class="${Number(diffRatio) > 15 ? "text-amber-700" : "text-blue-700"}">${sign}</strong></span>
-        </div>
-      `;
-    }
-
     function recalculateAll() {
-      const cs = computeCostStatement();
+      const calc = computeTotals();
       const area = Math.max(1, parseFloat(document.getElementById("lab-area").value) || 1);
+      const ceiling = Math.max(1.5, parseFloat(document.getElementById("lab-ceiling-height").value) || 2.8);
       const majorWorkType = document.getElementById("major-work-type").value;
       const improvementLevel = document.getElementById("improvement-level").value;
       const title = document.getElementById("project-title").value;
 
-      document.getElementById("kpi-grand-total").textContent = formatWon(cs.grandTotal);
-      document.getElementById("kpi-unit-area-cost").textContent = `${Math.round(cs.grandTotal / area).toLocaleString("ko-KR")} 원/㎡`;
-      document.getElementById("kpi-supply-price").textContent = formatWon(cs.supplyPrice);
-      document.getElementById("kpi-vat").textContent = formatWon(cs.vat);
+      document.getElementById("kpi-grand-total").textContent = formatWon(calc.grandTotal);
+      document.getElementById("kpi-unit-area-cost").textContent = `${Math.round(calc.grandTotal / area).toLocaleString("ko-KR")} 원/㎡`;
+      document.getElementById("kpi-supply-price").textContent = formatWon(calc.supplyPrice);
+      document.getElementById("kpi-vat").textContent = `부가세: ${formatWon(calc.vat)}`;
       document.getElementById("kpi-condition-summary").textContent = `${majorWorkType} · ${improvementLevel}`;
 
       document.getElementById("print-subtitle").textContent =
-        `${title} | 면적: ${area.toFixed(1)}㎡ | 주요공사내용: ${majorWorkType} | 환경개선 수준: ${improvementLevel} | 추정사업비: ${formatWon(cs.grandTotal)}`;
+        `${title} | 면적 ${area.toFixed(1)}㎡ | 층고 ${ceiling.toFixed(1)}m | ${majorWorkType} | 수준: ${improvementLevel}`;
       document.getElementById("print-date").textContent = `작성일: ${new Date().toLocaleDateString("ko-KR")}`;
 
-      renderBoqTable();
-      renderCostStatement(cs);
-      renderBenchmark(cs);
+      renderBoqTable(calc.enriched);
+      renderCostStatement(calc);
     }
 
-    // =========================================================================
-    // 8. 제경비 요율 제어
-    // =========================================================================
-    function syncRateInputsFromState() {
-      document.getElementById("rate-indirect-labor").value = costRates.indirect_labor;
-      document.getElementById("rate-other-expense").value = costRates.other_expense;
-      document.getElementById("rate-general-admin").value = costRates.general_admin;
-      document.getElementById("rate-profit").value = costRates.profit;
-      document.getElementById("rate-vat").value = costRates.vat;
-      document.getElementById("rate-contingency").value = costRates.contingency;
-    }
-
-    function onRatesInputChange() {
-      costRates = {
-        indirect_labor: parseFloat(document.getElementById("rate-indirect-labor").value) || 0,
-        other_expense: parseFloat(document.getElementById("rate-other-expense").value) || 0,
-        general_admin: parseFloat(document.getElementById("rate-general-admin").value) || 0,
-        profit: parseFloat(document.getElementById("rate-profit").value) || 0,
-        vat: parseFloat(document.getElementById("rate-vat").value) || 0,
-        contingency: parseFloat(document.getElementById("rate-contingency").value) || 0
-      };
-      saveJson(STORAGE_KEYS.RATES, costRates);
-      recalculateAll();
-    }
-
-    function resetCostRates() {
-      costRates = { ...DEFAULT_COST_RATES };
-      saveJson(STORAGE_KEYS.RATES, costRates);
-      syncRateInputsFromState();
-      recalculateAll();
-      showToast("기본 제경비 요율로 복원했습니다.", "info");
-    }
-
-    // =========================================================================
-    // 9. 호실·과거실적 엑셀(.xlsx) 업로드 및 모달 관리
-    // =========================================================================
-    function openDataModal(tab = "rooms") {
-      document.getElementById("data-modal").classList.remove("hidden");
-      switchDataModalTab(tab);
-      renderDataModalTables();
-    }
-
-    function closeDataModal() {
-      document.getElementById("data-modal").classList.add("hidden");
-    }
-
-    function switchDataModalTab(tab) {
-      const isRooms = tab === "rooms";
-      document.getElementById("data-panel-rooms").classList.toggle("hidden", !isRooms);
-      document.getElementById("data-panel-history").classList.toggle("hidden", isRooms);
-
-      document.getElementById("modal-tab-rooms").className = isRooms
-        ? "px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white cursor-pointer"
-        : "px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 cursor-pointer";
-
-      document.getElementById("modal-tab-history").className = !isRooms
-        ? "px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white cursor-pointer"
-        : "px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 cursor-pointer";
-    }
-
-    function renderDataModalTables() {
-      document.getElementById("modal-rooms-tbody").innerHTML = roomsData
-        .map(r => `
+    function renderBoqTable(enrichedItems) {
+      const tbody = document.getElementById("boq-table-body");
+      if (!enrichedItems || enrichedItems.length === 0) {
+        tbody.innerHTML = `
           <tr>
-            <td class="py-1.5 px-2.5">${escapeHtml(r.building)}</td>
-            <td class="py-1.5 px-2.5 font-semibold">${escapeHtml(r.roomNo)}</td>
-            <td class="py-1.5 px-2.5">${escapeHtml(r.labType)}</td>
-            <td class="py-1.5 px-2.5 text-right">${Number(r.area).toFixed(1)}</td>
-            <td class="py-1.5 px-2.5 text-right">${Number(r.capacity)}</td>
-          </tr>
-        `)
-        .join("");
-
-      document.getElementById("modal-history-tbody").innerHTML = historyData
-        .map(h => {
-          const unit = h.area > 0 ? Math.round(h.totalCost / h.area) : 0;
-          return `
-            <tr>
-              <td class="py-1.5 px-2.5 font-semibold">${escapeHtml(h.title)}</td>
-              <td class="py-1.5 px-2.5">${escapeHtml(h.labType)}</td>
-              <td class="py-1.5 px-2.5 text-right">${Number(h.area).toFixed(1)}</td>
-              <td class="py-1.5 px-2.5 text-right">${Number(h.totalCost).toLocaleString("ko-KR")}</td>
-              <td class="py-1.5 px-2.5 text-right">${unit.toLocaleString("ko-KR")}</td>
-              <td class="py-1.5 px-2.5 text-center">${escapeHtml(String(h.year || ""))}</td>
-            </tr>
-          `;
-        })
-        .join("");
-    }
-
-    function parseRowsFromExcelFile(file, callback) {
-      if (typeof XLSX === "undefined") {
-        showToast("엑셀 처리 라이브러리를 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.", "error");
+            <td colspan="6" class="py-8 text-center text-slate-400 text-xs">
+              산출된 내역 항목이 없습니다. 상단 또는 좌측에서 예산을 산출하세요.
+            </td>
+          </tr>`;
         return;
       }
 
-      const reader = new FileReader();
-      reader.onload = e => {
-        try {
-          const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type: "array" });
-
-          if (!workbook || !Array.isArray(workbook.SheetNames) || workbook.SheetNames.length === 0) {
-            showToast("엑셀 시트를 찾을 수 없습니다.", "warn");
-            return;
-          }
-
-          const headerKeywords = [
-            "건물", "호실", "면적", "유형", "분류", "용도", "구분", "인원", "정원",
-            "공사명", "총공사비", "공사비", "예산", "연도",
-            "building", "room", "area", "type", "cost", "year"
-          ];
-
-          for (const sheetName of workbook.SheetNames) {
-            const sheet = workbook.Sheets[sheetName];
-            if (!sheet) continue;
-
-            const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-            if (!Array.isArray(matrix) || matrix.length === 0) continue;
-
-            const headerRowIdx = matrix.findIndex(row =>
-              Array.isArray(row) &&
-              row.some(cell =>
-                headerKeywords.some(kw =>
-                  String(cell || "").replace(/\s+/g, "").toLowerCase().includes(kw.toLowerCase())
-                )
-              )
-            );
-
-            if (headerRowIdx >= 0) {
-              const rawHeaders = matrix[headerRowIdx].map((h, i) => {
-                const s = String(h || "").trim();
-                return s || `__col_${i}`;
-              });
-
-              const objects = matrix
-                .slice(headerRowIdx + 1)
-                .filter(row => Array.isArray(row) && row.some(cell => String(cell || "").trim() !== ""))
-                .map(row => {
-                  const obj = {};
-                  rawHeaders.forEach((h, i) => {
-                    obj[h] = row[i] ?? "";
-                  });
-                  return obj;
-                });
-
-              if (objects.length > 0) {
-                callback(objects);
-                return;
-              }
-            }
-
-            const fallbackRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-            if (Array.isArray(fallbackRows) && fallbackRows.length > 0) {
-              callback(fallbackRows);
-              return;
-            }
-          }
-
-          showToast("엑셀 시트에서 읽을 수 있는 데이터가 없습니다.", "warn");
-        } catch (err) {
-          console.error("엑셀 파싱 오류:", err);
-          showToast(`엑셀 파일 읽기 실패: ${err.message || err}`, "error");
-        }
-      };
-
-      reader.onerror = () => {
-        showToast("엑셀 파일을 읽는 중 오류가 발생했습니다.", "error");
-      };
-
-      reader.readAsArrayBuffer(file);
+      tbody.innerHTML = enrichedItems.map((row, idx) => `
+        <tr class="hover:bg-slate-50/80">
+          <td class="py-2.5 px-3 whitespace-nowrap">
+            <span class="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-medium">
+              ${escapeHtml(row.category)}
+            </span>
+          </td>
+          <td class="py-2.5 px-3">
+            <div class="font-semibold text-slate-900">${escapeHtml(row.name)}</div>
+            <div class="text-[11px] text-slate-500">${escapeHtml(row.spec || "")}</div>
+          </td>
+          <td class="py-2.5 px-2 text-center text-slate-600 whitespace-nowrap">${escapeHtml(row.unit)}</td>
+          <td class="py-2.5 px-2 text-right whitespace-nowrap">
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              value="${row.quantity}"
+              onchange="updateBoqQty(${idx}, this.value)"
+              class="w-20 text-right rounded border border-slate-300 px-2 py-1 text-xs tabular-nums focus:border-blue-500 outline-none"
+            />
+          </td>
+          <td class="py-2.5 px-3 text-right font-semibold text-slate-900 tabular-nums whitespace-nowrap">
+            ${formatWon(row.totalAmt)}
+          </td>
+          <td class="py-2.5 px-2 text-center no-print">
+            <button
+              type="button"
+              onclick="deleteBoqRow(${idx})"
+              class="text-slate-400 hover:text-rose-600 font-bold px-1.5 cursor-pointer"
+              title="삭제"
+            >
+              ✕
+            </button>
+          </td>
+        </tr>
+      `).join("");
     }
 
-    function pickField(row, keys, fallback = "") {
-// ... existing code ... -->
+    function renderCostStatement(calc) {
+      const container = document.getElementById("cost-statement-rows");
+      const rows = [
+        ["직접재료비", formatWon(calc.directMaterial)],
+        ["직접노무비", formatWon(calc.directLabor)],
+        ["간접노무비", formatWon(calc.indirectLabor)],
+        ["직접경비", formatWon(calc.directExpense)],
+        ["기타경비", formatWon(calc.otherExpense)],
+        ["순공사원가", formatWon(calc.netCost)],
+        ["일반관리비", formatWon(calc.generalAdmin)],
+        ["이윤", formatWon(calc.profit)],
+        ["공급가액", formatWon(calc.supplyPrice)],
+        ["부가가치세", formatWon(calc.vat)],
+        ["예비비", formatWon(calc.contingency)],
+        ["최종 추정사업비 (천원 절사)", formatWon(calc.grandTotal)]
+      ];
+
+      container.innerHTML = rows.map(([label, val], i) => {
+        const isHighlight = i === rows.length - 1 || label === "순공사원가" || label === "공급가액";
+        return `
+          <div class="flex items-center justify-between py-1.5 border-b border-slate-100 ${isHighlight ? "font-bold text-slate-900" : "text-slate-700"}">
+            <span>${escapeHtml(label)}</span>
+            <span class="${i === rows.length - 1 ? "text-blue-900 text-sm" : ""}">${escapeHtml(val)}</span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function updateBoqQty(index, rawValue) {
+      if (!boqItems[index]) return;
+      const num = parseFloat(rawValue);
+      boqItems[index].quantity = Number.isFinite(num) && num >= 0 ? num : 0;
+      recalculateAll();
+    }
+
+    function deleteBoqRow(index) {
+      boqItems.splice(index, 1);
+      recalculateAll();
+    }
+
+    function addBoqItemRow() {
+      const firstCode = Object.keys(priceDb)[0];
+      if (!firstCode) return;
+      const base = priceDb[firstCode];
+      boqItems.push({
+        uid: `custom-${Date.now()}`,
+        code: base.code,
+        category: base.category,
+        name: base.name,
+        spec: base.spec,
+        unit: base.unit,
+        quantity: 1,
+        material: Number(base.material) || 0,
+        labor: Number(base.labor) || 0,
+        expense: Number(base.expense) || 0
+      });
+      recalculateAll();
+    }
+
+    // =========================================================================
+    // 8. 엑셀 내보내기
+    // =========================================================================
+    function exportToExcel() {
+      const calc = computeTotals();
+      const title = document.getElementById("project-title").value || "실습실 환경개선 공사";
+      const area = parseFloat(document.getElementById("lab-area").value) || 0;
+      const capacity = parseInt(document.getElementById("lab-capacity").value, 10) || 0;
+      const ceiling = parseFloat(document.getElementById("lab-ceiling-height").value) || 2.8;
+      const labType = document.getElementById("lab-type").value;
+      const majorWorkType = document.getElementById("major-work-type").value;
+      const improvementLevel = document.getElementById("improvement-level").value;
+
+      const summarySheetData = [
+        ["항목", "내용"],
+        ["공사명", title],
+        ["실습실 유형", labType],
+        ["면적(㎡)", area],
+        ["수용인원(명)", capacity],
+        ["층고(m)", ceiling],
+        ["주요 공사내용", majorWorkType],
+        ["환경개선 수준", improvementLevel],
+        ["직접재료비", calc.directMaterial],
+        ["직접노무비", calc.directLabor],
+        ["간접노무비", calc.indirectLabor],
+        ["직접경비", calc.directExpense],
+        ["기타경비", calc.otherExpense],
+        ["순공사원가", calc.netCost],
+        ["일반관리비", calc.generalAdmin],
+        ["이윤", calc.profit],
+        ["공급가액", calc.supplyPrice],
+        ["부가가치세", calc.vat],
+        ["예비비", calc.contingency],
+        ["최종 추정사업비", calc.grandTotal]
+      ];
+
+      const detailSheetData = [
+        ["코드", "공종", "품목명", "규격", "단위", "수량", "재료비", "노무비", "경비", "합계금액"],
+        ...calc.enriched.map(r => [
+          r.code, r.category, r.name, r.spec, r.unit, r.quantity, r.matAmt, r.labAmt, r.expAmt, r.totalAmt
+        ])
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summarySheetData), "원가계산서");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(detailSheetData), "세부내역서");
+      XLSX.writeFile(wb, `${title.replace(/[\\/:*?"<>|]/g, "_")}_예산내역.xlsx`);
+      showToast("엑셀 파일이 다운로드되었습니다.", "success");
+    }
+
+    // =========================================================================
+    // 9. 모달 관리 (호실 DB / 단가 DB / API·제경비 설정)
+    // =========================================================================
+    function openDbModal(tab) {
+      const backdrop = document.getElementById("modal-backdrop");
+      const titleEl = document.getElementById("modal-title");
+      const bodyEl = document.getElementById("modal-body");
+
+      backdrop.classList.remove("hidden");
+      backdrop.classList.add("flex");
+
+      if (tab === "rooms") {
+        titleEl.textContent = "호실·면적 DB 현황";
+        bodyEl.innerHTML = `
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-slate-600">등록된 호실: <strong>${roomsDb.length}개실</strong></span>
+            <button type="button" onclick="resetRoomsDefault()" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold cursor-pointer">
+              기본 호실 DB 복원
+            </button>
+          </div>
+          <div class="overflow-x-auto border border-slate-200 rounded-lg">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-[11px] text-slate-600">
+                  <th class="py-2 px-2.5">건물</th>
+                  <th class="py-2 px-2.5">호실</th>
+                  <th class="py-2 px-2.5">유형</th>
+                  <th class="py-2 px-2.5 text-right">면적(㎡)</th>
+                  <th class="py-2 px-2.5 text-right">수용인원</th>
+                  <th class="py-2 px-2.5 text-right">층고(m)</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                ${roomsDb.map(r => `
+                  <tr>
+                    <td class="py-1.5 px-2.5">${escapeHtml(r.building)}</td>
+                    <td class="py-1.5 px-2.5 font-medium">${escapeHtml(r.roomNo)}</td>
+                    <td class="py-1.5 px-2.5">${escapeHtml(normalizeLabType(r.labType))}</td>
+                    <td class="py-1.5 px-2.5 text-right tabular-nums">${Number(r.area || 0).toFixed(1)}</td>
+                    <td class="py-1.5 px-2.5 text-right tabular-nums">${Number(r.capacity || 0)}</td>
+                    <td class="py-1.5 px-2.5 text-right tabular-nums">${Number(r.ceilingHeight || 2.8).toFixed(1)}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } else if (tab === "price") {
+        titleEl.textContent = "표준 단가 DB";
+        const list = Object.values(priceDb);
+        bodyEl.innerHTML = `
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-slate-600">등록된 품목: <strong>${list.length}종</strong></span>
+            <button type="button" onclick="resetPriceDefault()" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold cursor-pointer">
+              기본 단가 복원
+            </button>
+          </div>
+          <div class="overflow-x-auto border border-slate-200 rounded-lg">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-[11px] text-slate-600">
+                  <th class="py-2 px-2.5">코드</th>
+                  <th class="py-2 px-2.5">공종</th>
+                  <th class="py-2 px-2.5">품목명</th>
+                  <th class="py-2 px-2.5 text-center">단위</th>
+                  <th class="py-2 px-2.5 text-right">재료비</th>
+                  <th class="py-2 px-2.5 text-right">노무비</th>
+                  <th class="py-2 px-2.5 text-right">경비</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                ${list.map(p => `
+                  <tr>
+                    <td class="py-1.5 px-2.5 font-mono text-[11px]">${escapeHtml(p.code)}</td>
+                    <td class="py-1.5 px-2.5">${escapeHtml(p.category)}</td>
+                    <td class="py-1.5 px-2.5 font-medium">${escapeHtml(p.name)}</td>
+                    <td class="py-1.5 px-2.5 text-center">${escapeHtml(p.unit)}</td>
+                    <td class="py-1.5 px-2.5 text-right tabular-nums">${Number(p.material || 0).toLocaleString("ko-KR")}</td>
+                    <td class="py-1.5 px-2.5 text-right tabular-nums">${Number(p.labor || 0).toLocaleString("ko-KR")}</td>
+                    <td class="py-1.5 px-2.5 text-right tabular-nums">${Number(p.expense || 0).toLocaleString("ko-KR")}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } else {
+        titleEl.textContent = "API 키 및 제경비 요율 설정";
+        bodyEl.innerHTML = `
+          <div class="space-y-3">
+            <div>
+              <label for="modal-api-key" class="block font-semibold text-slate-700 mb-1">Gemini API Key (선택)</label>
+              <input
+                id="modal-api-key"
+                type="password"
+                value="${escapeHtml(geminiApiKey)}"
+                placeholder="AIza..."
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs"
+              />
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
+              <div>
+                <label class="block text-slate-600 mb-1">간접노무비율 (%)</label>
+                <input id="rate-indirect-labor" type="number" step="0.1" value="${costRates.indirect_labor}" class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 tabular-nums" />
+              </div>
+              <div>
+                <label class="block text-slate-600 mb-1">기타경비율 (%)</label>
+                <input id="rate-other-expense" type="number" step="0.1" value="${costRates.other_expense}" class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 tabular-nums" />
+              </div>
+              <div>
+                <label class="block text-slate-600 mb-1">일반관리비율 (%)</label>
+                <input id="rate-general-admin" type="number" step="0.1" value="${costRates.general_admin}" class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 tabular-nums" />
+              </div>
+              <div>
+                <label class="block text-slate-600 mb-1">이윤율 (%)</label>
+                <input id="rate-profit" type="number" step="0.1" value="${costRates.profit}" class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 tabular-nums" />
+              </div>
+              <div>
+                <label class="block text-slate-600 mb-1">부가가치세율 (%)</label>
+                <input id="rate-vat" type="number" step="0.1" value="${costRates.vat}" class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 tabular-nums" />
+              </div>
+              <div>
+                <label class="block text-slate-600 mb-1">예비비율 (%)</label>
+                <input id="rate-contingency" type="number" step="0.1" value="${costRates.contingency}" class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 tabular-nums" />
+              </div>
+            </div>
+            <div class="pt-2 flex justify-end">
+              <button
+                type="button"
+                onclick="saveSettingsFromModal()"
+                class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold cursor-pointer"
+              >
+                설정 저장
+              </button>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    function closeDbModal() {
+      const backdrop = document.getElementById("modal-backdrop");
+      backdrop.classList.add("hidden");
+      backdrop.classList.remove("flex");
+    }
+
+    function resetRoomsDefault() {
+      roomsDb = [...DEFAULT_ROOMS];
+      saveRoomsDb();
+      populateBuildingSelect();
+      populateRoomControls();
+      onRoomSelectionChange(true);
+      openDbModal("rooms");
+      showToast("기본 호실 DB로 복원되었습니다.", "success");
+    }
+
+    function resetPriceDefault() {
+      priceDb = { ...DEFAULT_PRICE_DB };
+      savePriceDb();
+      runRuleEstimation(false);
+      openDbModal("price");
+      showToast("기본 단가 DB로 복원되었습니다.", "success");
+    }
+
+    function saveSettingsFromModal() {
+      const keyInput = document.getElementById("modal-api-key");
+      if (keyInput) {
+        geminiApiKey = keyInput.value.trim();
+        try {
+          localStorage.setItem(STORAGE_KEYS.API_KEY, geminiApiKey);
+        } catch (e) {
+          // 무시
+        }
+      }
+
+      costRates = {
+        indirect_labor: parseFloat(document.getElementById("rate-indirect-labor")?.value) || 0,
+        other_expense: parseFloat(document.getElementById("rate-other-expense")?.value) || 0,
+        general_admin: parseFloat(document.getElementById("rate-general-admin")?.value) || 0,
+        profit: parseFloat(document.getElementById("rate-profit")?.value) || 0,
+        vat: parseFloat(document.getElementById("rate-vat")?.value) || 0,
+        contingency: parseFloat(document.getElementById("rate-contingency")?.value) || 0
+      };
+      saveRates();
+      recalculateAll();
+      closeDbModal();
+      showToast("설정이 저장되었습니다.", "success");
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    // =========================================================================
+    // 10. 초기화
+    // =========================================================================
+    window.addEventListener("DOMContentLoaded", () => {
+      loadStoredData();
+      populateBuildingSelect();
+      populateRoomControls();
+      onRoomSelectionChange(true);
+    });
+  </script>
+</body>
+</html>
